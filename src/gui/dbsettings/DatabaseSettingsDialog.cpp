@@ -89,7 +89,7 @@ DatabaseSettingsDialog::DatabaseSettingsDialog(QWidget* parent)
 #endif
 
 #ifdef WITH_XC_REMOTESYNC
-    addPage(tr("Remote Sync"), icons()->icon("network-server"), m_remoteSyncWidget);
+    addPage(tr("Remote Sync"), icons()->icon("refresh"), m_remoteSyncWidget);
 #endif
 
 #ifdef WITH_XC_FDOSECRETS
