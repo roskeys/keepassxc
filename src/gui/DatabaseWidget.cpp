@@ -65,6 +65,10 @@
 #include "sshagent/SSHAgent.h"
 #endif
 
+#ifdef WITH_XC_REMOTESYNC
+#include "remotesync/RemoteSyncManager.h"
+#endif
+
 #ifdef WITH_XC_BROWSER_PASSKEYS
 #include "gui/passkeys/PasskeyImporter.h"
 #endif
@@ -508,6 +512,14 @@ void DatabaseWidget::replaceDatabase(QSharedPointer<Database> db)
 #else
     // Keep the instance active till the end of this function
     Q_UNUSED(oldDb);
+#endif
+
+#if defined(WITH_XC_REMOTESYNC)
+    if (!m_remoteSyncManager) {
+        m_remoteSyncManager = new RemoteSyncManager(this);
+        connect(m_remoteSyncManager, &RemoteSyncManager::syncProgress, this, &DatabaseWidget::updateSyncProgress);
+    }
+    m_remoteSyncManager->onDatabaseUnlocked(m_db);
 #endif
 
     oldDb->releaseData();
@@ -1237,6 +1249,13 @@ void DatabaseWidget::connectDatabaseSignals()
     connect(m_db.data(), &Database::modified, this, &DatabaseWidget::databaseModified);
     connect(m_db.data(), &Database::modified, this, &DatabaseWidget::onDatabaseModified);
     connect(m_db.data(), &Database::databaseSaved, this, &DatabaseWidget::databaseSaved);
+#if defined(WITH_XC_REMOTESYNC)
+    connect(m_db.data(), &Database::databaseSaved, this, [this]() {
+        if (m_remoteSyncManager) {
+            m_remoteSyncManager->onDatabaseSaved(m_db);
+        }
+    });
+#endif
     connect(m_db.data(), &Database::databaseFileChanged, this, &DatabaseWidget::reloadDatabaseFile);
     connect(m_db.data(), &Database::databaseNonDataChanged, this, &DatabaseWidget::databaseNonDataChanged);
     connect(m_db.data(), &Database::databaseNonDataChanged, this, &DatabaseWidget::onDatabaseNonDataChanged);
@@ -1981,6 +2000,11 @@ bool DatabaseWidget::lock()
 
 #ifdef WITH_XC_SSHAGENT
     sshAgent()->databaseLocked(m_db);
+#endif
+#ifdef WITH_XC_REMOTESYNC
+    if (m_remoteSyncManager) {
+        m_remoteSyncManager->onDatabaseLocked();
+    }
 #endif
 
     endSearch();

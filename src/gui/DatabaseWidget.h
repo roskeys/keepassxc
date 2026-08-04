@@ -31,6 +31,9 @@
 class DatabaseOpenDialog;
 class DatabaseOpenWidget;
 class DatabaseSettingsDialog;
+#ifdef WITH_XC_REMOTESYNC
+class RemoteSyncManager;
+#endif
 class ReportsDialog;
 class FileWatcher;
 class EditEntryWidget;
@@ -328,6 +331,10 @@ private:
 
     // Autosave delay
     QPointer<QTimer> m_autosaveTimer;
+
+#ifdef WITH_XC_REMOTESYNC
+    QPointer<RemoteSyncManager> m_remoteSyncManager;
+#endif
 
     // Auto-Type related
     QString m_searchStringForAutoType;

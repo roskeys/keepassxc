@@ -27,6 +27,9 @@
 #ifdef WITH_XC_KEESHARE
 #include "keeshare/DatabaseSettingsWidgetKeeShare.h"
 #endif
+#ifdef WITH_XC_REMOTESYNC
+#include "remotesync/DatabaseSettingsWidgetRemoteSync.h"
+#endif
 #ifdef WITH_XC_FDOSECRETS
 #include "fdosecrets/widgets/DatabaseSettingsWidgetFdoSecrets.h"
 #endif
@@ -48,6 +51,9 @@ DatabaseSettingsDialog::DatabaseSettingsDialog(QWidget* parent)
 #endif
 #ifdef WITH_XC_KEESHARE
     , m_keeShareWidget(new DatabaseSettingsWidgetKeeShare(this))
+#endif
+#ifdef WITH_XC_REMOTESYNC
+    , m_remoteSyncWidget(new DatabaseSettingsWidgetRemoteSync(this))
 #endif
 #ifdef WITH_XC_FDOSECRETS
     , m_fdoSecretsWidget(new DatabaseSettingsWidgetFdoSecrets(this))
@@ -82,6 +88,10 @@ DatabaseSettingsDialog::DatabaseSettingsDialog(QWidget* parent)
     addPage(tr("KeeShare"), icons()->icon("preferences-system-network-sharing"), m_keeShareWidget);
 #endif
 
+#ifdef WITH_XC_REMOTESYNC
+    addPage(tr("Remote Sync"), icons()->icon("network-server"), m_remoteSyncWidget);
+#endif
+
 #ifdef WITH_XC_FDOSECRETS
     addPage(tr("Secret Service Integration"), icons()->icon(QStringLiteral("freedesktop")), m_fdoSecretsWidget);
 #endif
@@ -109,6 +119,9 @@ void DatabaseSettingsDialog::load(const QSharedPointer<Database>& db)
 #endif
 #ifdef WITH_XC_KEESHARE
     m_keeShareWidget->loadSettings(db);
+#endif
+#ifdef WITH_XC_REMOTESYNC
+    m_remoteSyncWidget->loadSettings(db);
 #endif
 #ifdef WITH_XC_FDOSECRETS
     m_fdoSecretsWidget->loadSettings(db);
@@ -150,6 +163,9 @@ void DatabaseSettingsDialog::save()
 
 #ifdef WITH_XC_KEESHARE
     m_keeShareWidget->saveSettings();
+#endif
+#ifdef WITH_XC_REMOTESYNC
+    m_remoteSyncWidget->saveSettings();
 #endif
 #ifdef WITH_XC_FDOSECRETS
     m_fdoSecretsWidget->saveSettings();

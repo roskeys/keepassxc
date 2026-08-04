@@ -34,6 +34,9 @@ class DatabaseSettingsWidgetBrowser;
 #ifdef WITH_XC_KEESHARE
 class DatabaseSettingsWidgetKeeShare;
 #endif
+#ifdef WITH_XC_REMOTESYNC
+class DatabaseSettingsWidgetRemoteSync;
+#endif
 #ifdef WITH_XC_FDOSECRETS
 class DatabaseSettingsWidgetFdoSecrets;
 #endif
@@ -70,6 +73,9 @@ private:
 #endif
 #ifdef WITH_XC_KEESHARE
     QPointer<DatabaseSettingsWidgetKeeShare> m_keeShareWidget;
+#endif
+#ifdef WITH_XC_REMOTESYNC
+    QPointer<DatabaseSettingsWidgetRemoteSync> m_remoteSyncWidget;
 #endif
 #ifdef WITH_XC_FDOSECRETS
     QPointer<DatabaseSettingsWidgetFdoSecrets> m_fdoSecretsWidget;
