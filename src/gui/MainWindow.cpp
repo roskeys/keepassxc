@@ -60,6 +60,10 @@
 #include "keeshare/SettingsPageKeeShare.h"
 #endif
 
+#ifdef WITH_XC_REMOTESYNC
+#include "remotesync/RemoteSyncSettings.h"
+#endif
+
 #ifdef WITH_XC_FDOSECRETS
 #include "fdosecrets/FdoSecretsPlugin.h"
 #endif
@@ -391,6 +395,9 @@ MainWindow::MainWindow()
     m_ui->actionDatabaseClose->setIcon(icons()->icon("document-close"));
     m_ui->actionReports->setIcon(icons()->icon("reports"));
     m_ui->actionDatabaseSettings->setIcon(icons()->icon("database-settings"));
+#ifdef WITH_XC_REMOTESYNC
+    m_ui->actionRemoteSync->setIcon(icons()->icon("refresh"));
+#endif
     m_ui->actionDatabaseSecurity->setIcon(icons()->icon("database-change-key"));
     m_ui->actionPasskeys->setIcon(icons()->icon("passkey"));
     m_ui->actionImportPasskey->setIcon(icons()->icon("document-import"));
@@ -513,6 +520,9 @@ MainWindow::MainWindow()
     connect(m_ui->actionDatabaseClose, SIGNAL(triggered()), m_ui->tabWidget, SLOT(closeCurrentDatabaseTab()));
     connect(m_ui->actionDatabaseMerge, SIGNAL(triggered()), m_ui->tabWidget, SLOT(mergeDatabase()));
     connect(m_ui->actionDatabaseSettings, SIGNAL(toggled(bool)), m_ui->tabWidget, SLOT(showDatabaseSettings(bool)));
+#ifdef WITH_XC_REMOTESYNC
+    connect(m_ui->actionRemoteSync, &QAction::triggered, m_ui->tabWidget, &DatabaseTabWidget::manualRemoteSync);
+#endif
     connect(m_ui->actionDatabaseSecurity, SIGNAL(triggered()), m_ui->tabWidget, SLOT(showDatabaseSecurity()));
     connect(m_ui->actionReports, SIGNAL(toggled(bool)), m_ui->tabWidget, SLOT(showDatabaseReports(bool)));
 #ifdef WITH_XC_BROWSER_PASSKEYS
@@ -1076,6 +1086,11 @@ void MainWindow::updateMenuActionState()
     m_ui->actionLockAllDatabases->setEnabled(hasLockableDatabase);
     m_ui->actionLockDatabaseToolbar->setEnabled(hasLockableDatabase);
     m_ui->actionDatabaseSettings->setEnabled(inDatabase || inDatabaseSettings);
+#ifdef WITH_XC_REMOTESYNC
+    bool syncEnabled = (databaseUnlocked && dbWidget && dbWidget->database() && RemoteSyncSettings::fromDatabase(dbWidget->database().data()).enabled);
+    m_ui->actionRemoteSync->setVisible(syncEnabled);
+    m_ui->actionRemoteSync->setEnabled(syncEnabled);
+#endif
     m_ui->actionDatabaseSecurity->setEnabled(inDatabase || inDatabaseSettings);
     m_ui->actionReports->setEnabled(inDatabase || inReports);
     m_ui->menuExport->setEnabled(inDatabase);

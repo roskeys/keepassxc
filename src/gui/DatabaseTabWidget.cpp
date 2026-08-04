@@ -562,6 +562,16 @@ void DatabaseTabWidget::showDatabaseSecurity()
     currentDatabaseWidget()->switchToDatabaseSecurity();
 }
 
+#ifdef WITH_XC_REMOTESYNC
+void DatabaseTabWidget::manualRemoteSync()
+{
+    auto* dbWidget = currentDatabaseWidget();
+    if (dbWidget) {
+        dbWidget->manualRemoteSync();
+    }
+}
+#endif
+
 #ifdef WITH_XC_BROWSER_PASSKEYS
 void DatabaseTabWidget::showPasskeys()
 {

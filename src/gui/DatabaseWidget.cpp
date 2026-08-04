@@ -1488,6 +1488,20 @@ void DatabaseWidget::switchToDatabaseSettings()
     }
 }
 
+#ifdef WITH_XC_REMOTESYNC
+RemoteSyncManager* DatabaseWidget::remoteSyncManager() const
+{
+    return m_remoteSyncManager.data();
+}
+
+void DatabaseWidget::manualRemoteSync()
+{
+    if (m_remoteSyncManager && m_db) {
+        m_remoteSyncManager->pullAndMerge();
+    }
+}
+#endif
+
 void DatabaseWidget::switchToOpenDatabase()
 {
     if (currentWidget() != m_databaseOpenWidget || m_databaseOpenWidget->filename() != m_db->filePath()) {

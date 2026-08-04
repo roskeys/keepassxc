@@ -225,6 +225,10 @@ public slots:
     void switchToDatabaseSecurity();
     void switchToDatabaseReports();
     void switchToDatabaseSettings();
+#ifdef WITH_XC_REMOTESYNC
+    RemoteSyncManager* remoteSyncManager() const;
+    void manualRemoteSync();
+#endif
 #ifdef WITH_XC_BROWSER_PASSKEYS
     void switchToPasskeys();
     void showImportPasskeyDialog(bool isEntry = false);

@@ -251,6 +251,7 @@
     <addaction name="actionLockAllDatabases"/>
     <addaction name="separator"/>
     <addaction name="actionDatabaseSettings"/>
+    <addaction name="actionRemoteSync"/>
     <addaction name="actionDatabaseSecurity"/>
     <addaction name="actionReports"/>
     <addaction name="separator"/>
@@ -435,6 +436,7 @@
    <addaction name="actionEntryAutoType"/>
    <addaction name="separator"/>
    <addaction name="actionDatabaseSettings"/>
+   <addaction name="actionRemoteSync"/>
    <addaction name="actionReports"/>
    <addaction name="separator"/>
    <addaction name="actionPasswordGenerator"/>
@@ -609,6 +611,17 @@
    </property>
    <property name="toolTip">
     <string>Database settings</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionRemoteSync">
+   <property name="text">
+    <string>Synchronize Database</string>
+   </property>
+   <property name="toolTip">
+    <string>Synchronize database with remote server</string>
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
