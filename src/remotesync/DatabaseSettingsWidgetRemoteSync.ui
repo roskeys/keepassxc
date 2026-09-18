@@ -456,6 +456,185 @@
        </item>
       </layout>
      </widget>
+
+     <!-- Tab 4: Git -->
+     <widget class="QWidget" name="tabGit">
+      <attribute name="title">
+       <string>Git</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutGit">
+       <item>
+        <widget class="QCheckBox" name="checkGitEnabled">
+         <property name="text">
+          <string>Enable Git Repository Synchronization</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupGitSettings">
+         <property name="title">
+          <string>Git Configuration</string>
+         </property>
+         <layout class="QFormLayout" name="formLayoutGit">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelGitRepoUrl">
+            <property name="text">
+             <string>Repository URL:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="editGitRepoUrl">
+            <property name="placeholderText">
+             <string>git@example.com:user/passwords.git or https://example.com/user/passwords.git</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelGitBranch">
+            <property name="text">
+             <string>Branch:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="editGitBranch">
+            <property name="placeholderText">
+             <string>main</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelGitRemotePath">
+            <property name="text">
+             <string>File Path in Repo:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="editGitRemotePath">
+            <property name="placeholderText">
+             <string>passwords.kdbx</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="labelGitUsername">
+            <property name="text">
+             <string>Username (HTTPS):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLineEdit" name="editGitUsername">
+            <property name="placeholderText">
+             <string>username (e.g., roskeys or personal access token)</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="labelGitPassword">
+            <property name="text">
+             <string>Password / Token / Passphrase:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QLineEdit" name="editGitPassword">
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="labelGitKeyPath">
+            <property name="text">
+             <string>SSH Private Key (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <layout class="QHBoxLayout" name="layoutGitKeyPath">
+            <item>
+             <widget class="QLineEdit" name="editGitKeyPath">
+              <property name="placeholderText">
+               <string>~/.ssh/id_ed25519 (leave blank for default)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonBrowseGitKey">
+              <property name="text">
+               <string>Browse...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="labelGitAuthorName">
+            <property name="text">
+             <string>Author Name (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QLineEdit" name="editGitAuthorName">
+            <property name="placeholderText">
+             <string>KeePassXC Sync</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="0">
+           <widget class="QLabel" name="labelGitAuthorEmail">
+            <property name="text">
+             <string>Author Email (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="QLineEdit" name="editGitAuthorEmail">
+            <property name="placeholderText">
+             <string>keepassxc@example.com</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutTestGit">
+         <item>
+          <widget class="QPushButton" name="buttonTestGit">
+           <property name="text">
+            <string>Test Git Connection</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="labelTestGitResult">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacerGit">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
 

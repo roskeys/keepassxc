@@ -44,6 +44,21 @@ struct S3Settings
     QString fullRemoteUrl(const QString& defaultFileName = {}) const;
 };
 
+struct GitSettings
+{
+    bool enabled = false;
+    QString repoUrl;
+    QString branch;
+    QString remotePath; // Path inside repository (defaults to passwords.kdbx)
+    QString username;   // For HTTPS auth or author name
+    QString password;   // Token / Password / SSH passphrase
+    QString keyPath;    // SSH private key path
+    QString authorName;
+    QString authorEmail;
+
+    QString fullRemoteUrl(const QString& defaultFileName = {}) const;
+};
+
 struct RemoteSyncSettings
 {
     enum class Protocol
@@ -51,12 +66,14 @@ struct RemoteSyncSettings
         WebDAV,
         SFTP,
         S3,
-        FTPS
+        FTPS,
+        Git
     };
 
     WebDavSettings webdav;
     SftpSettings sftp;
     S3Settings s3;
+    GitSettings git;
 
     int intervalSeconds = 300;
 
@@ -74,7 +91,7 @@ struct RemoteSyncSettings
 
     bool isAnyEnabled() const
     {
-        return webdav.enabled || sftp.enabled || s3.enabled;
+        return webdav.enabled || sftp.enabled || s3.enabled || git.enabled;
     }
 
     QString fullRemoteUrl(const QString& defaultFileName = {}) const;

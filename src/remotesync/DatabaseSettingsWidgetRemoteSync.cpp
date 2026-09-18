@@ -16,18 +16,22 @@ DatabaseSettingsWidgetRemoteSync::DatabaseSettingsWidgetRemoteSync(QWidget* pare
     connect(m_ui->checkWebDavEnabled, &QCheckBox::toggled, m_ui->groupWebDavSettings, &QWidget::setEnabled);
     connect(m_ui->checkSftpEnabled, &QCheckBox::toggled, m_ui->groupSftpSettings, &QWidget::setEnabled);
     connect(m_ui->checkS3Enabled, &QCheckBox::toggled, m_ui->groupS3Settings, &QWidget::setEnabled);
+    connect(m_ui->checkGitEnabled, &QCheckBox::toggled, m_ui->groupGitSettings, &QWidget::setEnabled);
 
     m_ui->groupWebDavSettings->setEnabled(false);
     m_ui->groupSftpSettings->setEnabled(false);
     m_ui->groupS3Settings->setEnabled(false);
+    m_ui->groupGitSettings->setEnabled(false);
 
-    // Browse key file for SFTP
+    // Browse key file for SFTP & Git
     connect(m_ui->buttonBrowseSftpKey, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onBrowseSftpKey);
+    connect(m_ui->buttonBrowseGitKey, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onBrowseGitKey);
 
     // Test buttons
     connect(m_ui->buttonTestWebDav, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestWebDavConnection);
     connect(m_ui->buttonTestSftp, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestSftpConnection);
     connect(m_ui->buttonTestS3, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestS3Connection);
+    connect(m_ui->buttonTestGit, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestGitConnection);
 }
 
 DatabaseSettingsWidgetRemoteSync::~DatabaseSettingsWidgetRemoteSync() = default;
@@ -72,7 +76,18 @@ void DatabaseSettingsWidgetRemoteSync::loadSettings(QSharedPointer<Database> db)
     m_ui->editS3SecretKey->setText(s.s3.secretKey);
     m_ui->editS3RemotePath->setText(s.s3.remotePath);
     m_ui->checkS3VerifySsl->setChecked(s.s3.verifySsl);
-    m_ui->labelTestS3Result->clear();
+    // 4. Git
+    m_ui->checkGitEnabled->setChecked(s.git.enabled);
+    m_ui->groupGitSettings->setEnabled(s.git.enabled);
+    m_ui->editGitRepoUrl->setText(s.git.repoUrl);
+    m_ui->editGitBranch->setText(s.git.branch.isEmpty() ? QStringLiteral("main") : s.git.branch);
+    m_ui->editGitRemotePath->setText(s.git.remotePath);
+    m_ui->editGitUsername->setText(s.git.username);
+    m_ui->editGitPassword->setText(s.git.password);
+    m_ui->editGitKeyPath->setText(s.git.keyPath);
+    m_ui->editGitAuthorName->setText(s.git.authorName);
+    m_ui->editGitAuthorEmail->setText(s.git.authorEmail);
+    m_ui->labelTestGitResult->clear();
 
     // Global
     m_ui->spinInterval->setValue(s.intervalSeconds / 60 > 0 ? s.intervalSeconds / 60 : 5);
@@ -114,6 +129,17 @@ void DatabaseSettingsWidgetRemoteSync::saveSettings()
     s.s3.remotePath = m_ui->editS3RemotePath->text().trimmed();
     s.s3.verifySsl = m_ui->checkS3VerifySsl->isChecked();
 
+    // 4. Git
+    s.git.enabled = m_ui->checkGitEnabled->isChecked();
+    s.git.repoUrl = m_ui->editGitRepoUrl->text().trimmed();
+    s.git.branch = m_ui->editGitBranch->text().trimmed();
+    s.git.remotePath = m_ui->editGitRemotePath->text().trimmed();
+    s.git.username = m_ui->editGitUsername->text().trimmed();
+    s.git.password = m_ui->editGitPassword->text();
+    s.git.keyPath = m_ui->editGitKeyPath->text().trimmed();
+    s.git.authorName = m_ui->editGitAuthorName->text().trimmed();
+    s.git.authorEmail = m_ui->editGitAuthorEmail->text().trimmed();
+
     // Global
     s.intervalSeconds = m_ui->spinInterval->value() * 60;
 
@@ -126,6 +152,15 @@ void DatabaseSettingsWidgetRemoteSync::onBrowseSftpKey()
     QString selected = QFileDialog::getOpenFileName(this, tr("Select SSH Private Key"), initialDir, tr("All Files (*);;SSH Keys (*.id_* id_* *.pem)"));
     if (!selected.isEmpty()) {
         m_ui->editSftpKeyPath->setText(selected);
+    }
+}
+
+void DatabaseSettingsWidgetRemoteSync::onBrowseGitKey()
+{
+    QString initialDir = QDir::homePath() + QStringLiteral("/.ssh");
+    QString selected = QFileDialog::getOpenFileName(this, tr("Select SSH Private Key for Git"), initialDir, tr("All Files (*);;SSH Keys (*.id_* id_* *.pem)"));
+    if (!selected.isEmpty()) {
+        m_ui->editGitKeyPath->setText(selected);
     }
 }
 
@@ -228,6 +263,35 @@ void DatabaseSettingsWidgetRemoteSync::onTestS3Connection()
             m_ui->labelTestS3Result->setText(tr("<font color='green'>Connection successful!</font>"));
         } else {
             m_ui->labelTestS3Result->setText(tr("<font color='red'>Failed: %1</font>").arg(result.errorMessage));
+        }
+        provider->deleteLater();
+    });
+}
+
+void DatabaseSettingsWidgetRemoteSync::onTestGitConnection()
+{
+    RemoteSyncSettings s;
+    s.protocol = RemoteSyncSettings::Protocol::Git;
+    s.git.enabled = true;
+    s.git.repoUrl = m_ui->editGitRepoUrl->text().trimmed();
+    s.git.branch = m_ui->editGitBranch->text().trimmed();
+    s.git.remotePath = m_ui->editGitRemotePath->text().trimmed();
+    s.git.username = m_ui->editGitUsername->text().trimmed();
+    s.git.password = m_ui->editGitPassword->text();
+    s.git.keyPath = m_ui->editGitKeyPath->text().trimmed();
+    s.git.authorName = m_ui->editGitAuthorName->text().trimmed();
+    s.git.authorEmail = m_ui->editGitAuthorEmail->text().trimmed();
+
+    m_ui->labelTestGitResult->setText(tr("Testing Git connection..."));
+    m_ui->buttonTestGit->setEnabled(false);
+
+    auto* provider = SyncProviderFactory::create(RemoteSyncSettings::Protocol::Git, this);
+    provider->testConnection(s, [this, provider](const SyncResult& result) {
+        m_ui->buttonTestGit->setEnabled(true);
+        if (result.isSuccess()) {
+            m_ui->labelTestGitResult->setText(tr("<font color='green'>Connection successful!</font>"));
+        } else {
+            m_ui->labelTestGitResult->setText(tr("<font color='red'>Failed: %1</font>").arg(result.errorMessage));
         }
         provider->deleteLater();
     });

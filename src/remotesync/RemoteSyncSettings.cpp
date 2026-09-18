@@ -44,6 +44,17 @@ static const QString KEY_S3_SECRETKEY = QStringLiteral("KPXC_REMOTESYNC_S3_SECRE
 static const QString KEY_S3_REMOTEPATH_NEW = QStringLiteral("KPXC_REMOTESYNC_S3_REMOTEPATH");
 static const QString KEY_S3_VERIFY_SSL = QStringLiteral("KPXC_REMOTESYNC_S3_VERIFY_SSL");
 
+// Git Keys
+static const QString KEY_GIT_ENABLED = QStringLiteral("KPXC_REMOTESYNC_GIT_ENABLED");
+static const QString KEY_GIT_REPOURL = QStringLiteral("KPXC_REMOTESYNC_GIT_REPOURL");
+static const QString KEY_GIT_BRANCH = QStringLiteral("KPXC_REMOTESYNC_GIT_BRANCH");
+static const QString KEY_GIT_REMOTEPATH = QStringLiteral("KPXC_REMOTESYNC_GIT_REMOTEPATH");
+static const QString KEY_GIT_USERNAME = QStringLiteral("KPXC_REMOTESYNC_GIT_USERNAME");
+static const QString KEY_GIT_PASSWORD = QStringLiteral("KPXC_REMOTESYNC_GIT_PASSWORD");
+static const QString KEY_GIT_KEYPATH = QStringLiteral("KPXC_REMOTESYNC_GIT_KEYPATH");
+static const QString KEY_GIT_AUTHORNAME = QStringLiteral("KPXC_REMOTESYNC_GIT_AUTHORNAME");
+static const QString KEY_GIT_AUTHOREMAIL = QStringLiteral("KPXC_REMOTESYNC_GIT_AUTHOREMAIL");
+
 QString WebDavSettings::fullRemoteUrl(const QString& defaultFileName) const
 {
     QString trimmedUrl = url.trimmed();
@@ -109,6 +120,15 @@ QString S3Settings::fullRemoteUrl(const QString& defaultFileName) const
     return QStringLiteral("s3://%1/%2").arg(bucket.trimmed(), path);
 }
 
+QString GitSettings::fullRemoteUrl(const QString& defaultFileName) const
+{
+    QString path = remotePath.trimmed();
+    if (path.isEmpty()) {
+        path = defaultFileName.isEmpty() ? QStringLiteral("passwords.kdbx") : defaultFileName;
+    }
+    return QStringLiteral("%1#%2:%3").arg(repoUrl.trimmed(), branch.isEmpty() ? QStringLiteral("main") : branch.trimmed(), path);
+}
+
 QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
 {
     if (webdav.enabled) {
@@ -119,6 +139,9 @@ QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
     }
     if (s3.enabled) {
         return s3.fullRemoteUrl(defaultFileName);
+    }
+    if (git.enabled) {
+        return git.fullRemoteUrl(defaultFileName);
     }
     return {};
 }
@@ -132,6 +155,8 @@ QString RemoteSyncSettings::protocolToString(Protocol p)
         return QStringLiteral("s3");
     case Protocol::FTPS:
         return QStringLiteral("ftps");
+    case Protocol::Git:
+        return QStringLiteral("git");
     case Protocol::WebDAV:
     default:
         return QStringLiteral("webdav");
@@ -148,6 +173,9 @@ RemoteSyncSettings::Protocol RemoteSyncSettings::protocolFromString(const QStrin
     }
     if (str == QLatin1String("ftps")) {
         return Protocol::FTPS;
+    }
+    if (str == QLatin1String("git")) {
+        return Protocol::Git;
     }
     return Protocol::WebDAV;
 }
@@ -236,6 +264,19 @@ RemoteSyncSettings RemoteSyncSettings::fromDatabase(const Database* db)
         s.s3.verifySsl = (getVal(KEY_VERIFY_SSL, QStringLiteral("true")) == QLatin1String("true"));
     }
 
+    // 4. Git Settings
+    if (cd->contains(KEY_GIT_ENABLED)) {
+        s.git.enabled = (cd->value(KEY_GIT_ENABLED) == QLatin1String("true"));
+        s.git.repoUrl = cd->value(KEY_GIT_REPOURL);
+        s.git.branch = getVal(KEY_GIT_BRANCH, QStringLiteral("main"));
+        s.git.remotePath = cd->value(KEY_GIT_REMOTEPATH);
+        s.git.username = cd->value(KEY_GIT_USERNAME);
+        s.git.password = cd->value(KEY_GIT_PASSWORD);
+        s.git.keyPath = cd->value(KEY_GIT_KEYPATH);
+        s.git.authorName = cd->value(KEY_GIT_AUTHORNAME);
+        s.git.authorEmail = cd->value(KEY_GIT_AUTHOREMAIL);
+    }
+
     // Populate legacy fields for compatibility
     s.enabled = s.isAnyEnabled();
     if (s.webdav.enabled) {
@@ -304,6 +345,17 @@ void RemoteSyncSettings::saveToDatabase(Database* db) const
     cd->set(KEY_S3_SECRETKEY, s3.secretKey);
     cd->set(KEY_S3_REMOTEPATH_NEW, s3.remotePath);
     cd->set(KEY_S3_VERIFY_SSL, s3.verifySsl ? QStringLiteral("true") : QStringLiteral("false"));
+
+    // Git
+    cd->set(KEY_GIT_ENABLED, git.enabled ? QStringLiteral("true") : QStringLiteral("false"));
+    cd->set(KEY_GIT_REPOURL, git.repoUrl);
+    cd->set(KEY_GIT_BRANCH, git.branch.isEmpty() ? QStringLiteral("main") : git.branch);
+    cd->set(KEY_GIT_REMOTEPATH, git.remotePath);
+    cd->set(KEY_GIT_USERNAME, git.username);
+    cd->set(KEY_GIT_PASSWORD, git.password);
+    cd->set(KEY_GIT_KEYPATH, git.keyPath);
+    cd->set(KEY_GIT_AUTHORNAME, git.authorName);
+    cd->set(KEY_GIT_AUTHOREMAIL, git.authorEmail);
 
     // Keep legacy keys updated for compatibility
     if (webdav.enabled) {

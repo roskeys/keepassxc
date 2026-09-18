@@ -60,7 +60,8 @@ private:
     void pushToProviders(int index,
                          const QString& localTempPath,
                          std::function<void(bool success)> completion,
-                         std::shared_ptr<QStringList> failedTargets = nullptr);
+                         std::shared_ptr<QStringList> failedTargets = nullptr,
+                         std::shared_ptr<QStringList> succeededTargets = nullptr);
 
     QSharedPointer<Database> m_db;
     RemoteSyncSettings m_settings;

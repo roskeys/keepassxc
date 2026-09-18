@@ -73,6 +73,13 @@ void RemoteSyncManager::onDatabaseUnlocked(QSharedPointer<Database> db)
         m_providers.append({RemoteSyncSettings::Protocol::S3, QStringLiteral("S3"), p, QString()});
     }
 
+    // 4. Git Provider
+    if (m_settings.git.enabled && !m_settings.git.repoUrl.isEmpty()) {
+        auto* p = SyncProviderFactory::create(RemoteSyncSettings::Protocol::Git, this);
+        p->configure(m_settings);
+        m_providers.append({RemoteSyncSettings::Protocol::Git, QStringLiteral("Git"), p, QString()});
+    }
+
     if (m_providers.isEmpty()) {
         return;
     }
@@ -191,6 +198,9 @@ void RemoteSyncManager::pullFromProviders(int index, std::function<void(bool suc
     case RemoteSyncSettings::Protocol::S3:
         remotePath = m_settings.s3.remotePath;
         break;
+    case RemoteSyncSettings::Protocol::Git:
+        remotePath = m_settings.git.remotePath.isEmpty() ? QFileInfo(m_db->filePath()).fileName() : m_settings.git.remotePath;
+        break;
     case RemoteSyncSettings::Protocol::WebDAV:
     default:
         remotePath = m_settings.webdav.fullRemoteUrl(QFileInfo(m_db->filePath()).fileName());
@@ -263,15 +273,7 @@ void RemoteSyncManager::pushDatabase(std::function<void(bool success)> completio
         return;
     }
 
-    QStringList targetNames;
-    for (const auto& p : m_providers) {
-        targetNames << p.name;
-    }
-
     m_state = SyncState::Pushing;
-    QString startMsg = tr("Pushing database to %1...").arg(targetNames.join(QStringLiteral(", ")));
-    emit syncStatusChanged(m_state, startMsg);
-    emit syncProgress(0, startMsg);
 
     // Save database to a temporary local file
     auto* localTemp = new QTemporaryFile(this);
@@ -304,16 +306,17 @@ void RemoteSyncManager::pushDatabase(std::function<void(bool success)> completio
     }
 
     auto failedTargets = std::make_shared<QStringList>();
-    pushToProviders(0, localTempPath, [this, localTemp, failedTargets, completion](bool) {
+    auto succeededTargets = std::make_shared<QStringList>();
+    pushToProviders(0, localTempPath, [this, localTemp, failedTargets, succeededTargets, completion](bool) {
         delete localTemp;
         m_state = SyncState::Idle;
 
         if (failedTargets->isEmpty()) {
-            QString statusMsg = tr("Successfully synced to remote target(s)");
+            QString statusMsg = tr("Sync finished: %1 up to date").arg(succeededTargets->join(QStringLiteral(", ")));
             emit syncStatusChanged(m_state, statusMsg);
             emit syncProgress(100, statusMsg);
         } else {
-            QString statusMsg = tr("Sync completed with errors on: %1").arg(failedTargets->join(QStringLiteral(", ")));
+            QString statusMsg = tr("Sync failed on: %1").arg(failedTargets->join(QStringLiteral("; ")));
             emit syncStatusChanged(SyncState::Error, statusMsg);
             emit syncProgress(100, statusMsg);
         }
@@ -322,13 +325,14 @@ void RemoteSyncManager::pushDatabase(std::function<void(bool success)> completio
         if (completion) {
             completion(failedTargets->isEmpty());
         }
-    }, failedTargets);
+    }, failedTargets, succeededTargets);
 }
 
 void RemoteSyncManager::pushToProviders(int index,
                                         const QString& localTempPath,
                                         std::function<void(bool success)> completion,
-                                        std::shared_ptr<QStringList> failedTargets)
+                                        std::shared_ptr<QStringList> failedTargets,
+                                        std::shared_ptr<QStringList> succeededTargets)
 {
     if (index >= m_providers.size() || !m_db) {
         if (completion) {
@@ -338,10 +342,10 @@ void RemoteSyncManager::pushToProviders(int index,
     }
 
     auto& entry = m_providers[index];
-    int pct = 10 + (index * 80) / m_providers.size();
-    QString progressMsg = tr("Pushing to %1 (%2 of %3)...").arg(entry.name).arg(index + 1).arg(m_providers.size());
+    int startPct = (index * 100) / m_providers.size();
+    QString progressMsg = tr("[%1] Uploading database (%2/%3)...").arg(entry.name).arg(index + 1).arg(m_providers.size());
     emit syncStatusChanged(m_state, progressMsg);
-    emit syncProgress(pct, progressMsg);
+    emit syncProgress(startPct, progressMsg);
 
     QString remotePath;
     switch (entry.protocol) {
@@ -351,6 +355,9 @@ void RemoteSyncManager::pushToProviders(int index,
     case RemoteSyncSettings::Protocol::S3:
         remotePath = m_settings.s3.remotePath;
         break;
+    case RemoteSyncSettings::Protocol::Git:
+        remotePath = m_settings.git.remotePath.isEmpty() ? QFileInfo(m_db->filePath()).fileName() : m_settings.git.remotePath;
+        break;
     case RemoteSyncSettings::Protocol::WebDAV:
     default:
         remotePath = m_settings.webdav.fullRemoteUrl(QFileInfo(m_db->filePath()).fileName());
@@ -359,26 +366,32 @@ void RemoteSyncManager::pushToProviders(int index,
 
     QString remoteTmpPath = remotePath + QStringLiteral(".tmp.") + QUuid::createUuid().toString(QUuid::WithoutBraces);
 
-    entry.provider->uploadFile(localTempPath, remoteTmpPath, [this, index, localTempPath, remoteTmpPath, remotePath, completion, failedTargets](const SyncResult& upResult) {
+    entry.provider->uploadFile(localTempPath, remoteTmpPath, [this, index, localTempPath, remoteTmpPath, remotePath, completion, failedTargets, succeededTargets](const SyncResult& upResult) {
         if (!upResult.isSuccess()) {
             if (failedTargets) {
                 failedTargets->append(QStringLiteral("%1 (upload: %2)").arg(m_providers[index].name, upResult.errorMessage));
             }
-            emit syncStatusChanged(SyncState::Error, tr("Upload failed for %1: %2").arg(m_providers[index].name, upResult.errorMessage));
-            pushToProviders(index + 1, localTempPath, completion, failedTargets);
+            emit syncStatusChanged(SyncState::Error, tr("[%1] Upload failed: %2").arg(m_providers[index].name, upResult.errorMessage));
+            pushToProviders(index + 1, localTempPath, completion, failedTargets, succeededTargets);
             return;
         }
 
-        m_providers[index].provider->moveFile(remoteTmpPath, remotePath, [this, index, localTempPath, completion, failedTargets](const SyncResult& mvResult) {
+        m_providers[index].provider->moveFile(remoteTmpPath, remotePath, [this, index, localTempPath, completion, failedTargets, succeededTargets](const SyncResult& mvResult) {
             if (mvResult.isSuccess()) {
                 m_providers[index].lastPushedETag.clear();
+                if (succeededTargets) {
+                    succeededTargets->append(m_providers[index].name);
+                }
+                int endPct = ((index + 1) * 100) / m_providers.size();
+                QString okMsg = tr("[%1] Pushed successfully (%2/%3)").arg(m_providers[index].name).arg(index + 1).arg(m_providers.size());
+                emit syncProgress(endPct, okMsg);
             } else {
                 if (failedTargets) {
                     failedTargets->append(QStringLiteral("%1 (commit: %2)").arg(m_providers[index].name, mvResult.errorMessage));
                 }
-                emit syncStatusChanged(SyncState::Error, tr("Commit failed for %1: %2").arg(m_providers[index].name, mvResult.errorMessage));
+                emit syncStatusChanged(SyncState::Error, tr("[%1] Commit failed: %2").arg(m_providers[index].name, mvResult.errorMessage));
             }
-            pushToProviders(index + 1, localTempPath, completion, failedTargets);
+            pushToProviders(index + 1, localTempPath, completion, failedTargets, succeededTargets);
         });
     });
 }

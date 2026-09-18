@@ -25,9 +25,11 @@ public:
 
 private slots:
     void onBrowseSftpKey();
+    void onBrowseGitKey();
     void onTestWebDavConnection();
     void onTestSftpConnection();
     void onTestS3Connection();
+    void onTestGitConnection();
 
 private:
     QScopedPointer<Ui::DatabaseSettingsWidgetRemoteSync> m_ui;
