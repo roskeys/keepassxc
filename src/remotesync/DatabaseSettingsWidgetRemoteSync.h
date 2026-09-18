@@ -27,6 +27,7 @@ private slots:
     void onBrowseSftpKey();
     void onBrowseGitKey();
     void onTestWebDavConnection();
+    void onTestDropboxConnection();
     void onTestSftpConnection();
     void onTestS3Connection();
     void onTestGitConnection();

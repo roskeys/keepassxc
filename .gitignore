@@ -31,3 +31,5 @@ out/
 # vcpkg
 vcpkg_installed*/
 
+credentials/
+.xauthority

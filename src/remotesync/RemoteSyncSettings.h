@@ -59,11 +59,23 @@ struct GitSettings
     QString fullRemoteUrl(const QString& defaultFileName = {}) const;
 };
 
+struct DropboxSettings
+{
+    bool enabled = false;
+    QString accessToken; // Personal Access Token or OAuth Bearer Token
+    QString remotePath;  // Path inside Dropbox (e.g., /Passwords/passwords.kdbx)
+    QString appKey;      // Optional custom App Key
+    QString appSecret;   // Optional custom App Secret
+
+    QString fullRemoteUrl(const QString& defaultFileName = {}) const;
+};
+
 struct RemoteSyncSettings
 {
     enum class Protocol
     {
         WebDAV,
+        Dropbox,
         SFTP,
         S3,
         FTPS,
@@ -71,6 +83,7 @@ struct RemoteSyncSettings
     };
 
     WebDavSettings webdav;
+    DropboxSettings dropbox;
     SftpSettings sftp;
     S3Settings s3;
     GitSettings git;
@@ -91,7 +104,7 @@ struct RemoteSyncSettings
 
     bool isAnyEnabled() const
     {
-        return webdav.enabled || sftp.enabled || s3.enabled || git.enabled;
+        return webdav.enabled || dropbox.enabled || sftp.enabled || s3.enabled || git.enabled;
     }
 
     QString fullRemoteUrl(const QString& defaultFileName = {}) const;

@@ -25,6 +25,13 @@ static const QString KEY_WEBDAV_USERNAME = QStringLiteral("KPXC_REMOTESYNC_WEBDA
 static const QString KEY_WEBDAV_PASSWORD = QStringLiteral("KPXC_REMOTESYNC_WEBDAV_PASSWORD");
 static const QString KEY_WEBDAV_VERIFY_SSL = QStringLiteral("KPXC_REMOTESYNC_WEBDAV_VERIFY_SSL");
 
+// Dropbox Keys
+static const QString KEY_DROPBOX_ENABLED = QStringLiteral("KPXC_REMOTESYNC_DROPBOX_ENABLED");
+static const QString KEY_DROPBOX_TOKEN = QStringLiteral("KPXC_REMOTESYNC_DROPBOX_TOKEN");
+static const QString KEY_DROPBOX_REMOTEPATH = QStringLiteral("KPXC_REMOTESYNC_DROPBOX_REMOTEPATH");
+static const QString KEY_DROPBOX_APPKEY = QStringLiteral("KPXC_REMOTESYNC_DROPBOX_APPKEY");
+static const QString KEY_DROPBOX_APPSECRET = QStringLiteral("KPXC_REMOTESYNC_DROPBOX_APPSECRET");
+
 // SFTP Keys
 static const QString KEY_SFTP_ENABLED = QStringLiteral("KPXC_REMOTESYNC_SFTP_ENABLED");
 static const QString KEY_SFTP_HOST = QStringLiteral("KPXC_REMOTESYNC_SFTP_HOST");
@@ -129,10 +136,25 @@ QString GitSettings::fullRemoteUrl(const QString& defaultFileName) const
     return QStringLiteral("%1#%2:%3").arg(repoUrl.trimmed(), branch.isEmpty() ? QStringLiteral("main") : branch.trimmed(), path);
 }
 
+QString DropboxSettings::fullRemoteUrl(const QString& defaultFileName) const
+{
+    QString path = remotePath.trimmed();
+    if (path.isEmpty()) {
+        path = defaultFileName.isEmpty() ? QStringLiteral("passwords.kdbx") : defaultFileName;
+    }
+    if (!path.startsWith(QLatin1Char('/'))) {
+        path.prepend(QLatin1Char('/'));
+    }
+    return QStringLiteral("dropbox:%1").arg(path);
+}
+
 QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
 {
     if (webdav.enabled) {
         return webdav.fullRemoteUrl(defaultFileName);
+    }
+    if (dropbox.enabled) {
+        return dropbox.fullRemoteUrl(defaultFileName);
     }
     if (sftp.enabled) {
         return sftp.fullRemoteUrl(defaultFileName);
@@ -149,6 +171,8 @@ QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
 QString RemoteSyncSettings::protocolToString(Protocol p)
 {
     switch (p) {
+    case Protocol::Dropbox:
+        return QStringLiteral("dropbox");
     case Protocol::SFTP:
         return QStringLiteral("sftp");
     case Protocol::S3:
@@ -165,6 +189,9 @@ QString RemoteSyncSettings::protocolToString(Protocol p)
 
 RemoteSyncSettings::Protocol RemoteSyncSettings::protocolFromString(const QString& str)
 {
+    if (str == QLatin1String("dropbox")) {
+        return Protocol::Dropbox;
+    }
     if (str == QLatin1String("sftp")) {
         return Protocol::SFTP;
     }
@@ -222,7 +249,16 @@ RemoteSyncSettings RemoteSyncSettings::fromDatabase(const Database* db)
         }
     }
 
-    // 2. SFTP Settings
+    // 2. Dropbox Settings
+    if (cd->contains(KEY_DROPBOX_ENABLED)) {
+        s.dropbox.enabled = (cd->value(KEY_DROPBOX_ENABLED) == QLatin1String("true"));
+        s.dropbox.accessToken = cd->value(KEY_DROPBOX_TOKEN);
+        s.dropbox.remotePath = cd->value(KEY_DROPBOX_REMOTEPATH);
+        s.dropbox.appKey = cd->value(KEY_DROPBOX_APPKEY);
+        s.dropbox.appSecret = cd->value(KEY_DROPBOX_APPSECRET);
+    }
+
+    // 3. SFTP Settings
     if (cd->contains(KEY_SFTP_ENABLED)) {
         s.sftp.enabled = (cd->value(KEY_SFTP_ENABLED) == QLatin1String("true"));
         s.sftp.host = cd->value(KEY_SFTP_HOST);
@@ -326,6 +362,13 @@ void RemoteSyncSettings::saveToDatabase(Database* db) const
     cd->set(KEY_WEBDAV_USERNAME, webdav.username);
     cd->set(KEY_WEBDAV_PASSWORD, webdav.password);
     cd->set(KEY_WEBDAV_VERIFY_SSL, webdav.verifySsl ? QStringLiteral("true") : QStringLiteral("false"));
+
+    // Dropbox
+    cd->set(KEY_DROPBOX_ENABLED, dropbox.enabled ? QStringLiteral("true") : QStringLiteral("false"));
+    cd->set(KEY_DROPBOX_TOKEN, dropbox.accessToken);
+    cd->set(KEY_DROPBOX_REMOTEPATH, dropbox.remotePath);
+    cd->set(KEY_DROPBOX_APPKEY, dropbox.appKey);
+    cd->set(KEY_DROPBOX_APPSECRET, dropbox.appSecret);
 
     // SFTP
     cd->set(KEY_SFTP_ENABLED, sftp.enabled ? QStringLiteral("true") : QStringLiteral("false"));

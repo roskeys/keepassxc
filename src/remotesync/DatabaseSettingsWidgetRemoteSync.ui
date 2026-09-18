@@ -141,7 +141,125 @@
       </layout>
      </widget>
 
-     <!-- Tab 2: SFTP (SSH) -->
+     <!-- Tab 2: Dropbox -->
+     <widget class="QWidget" name="tabDropbox">
+      <attribute name="title">
+       <string>Dropbox</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutDropbox">
+       <item>
+        <widget class="QCheckBox" name="checkDropboxEnabled">
+         <property name="text">
+          <string>Enable Dropbox Synchronization</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupDropboxSettings">
+         <property name="title">
+          <string>Dropbox Configuration</string>
+         </property>
+         <layout class="QFormLayout" name="formLayoutDropbox">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelDropboxToken">
+            <property name="text">
+             <string>Access Token:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="editDropboxToken">
+            <property name="placeholderText">
+             <string>sl.u.AF... (Dropbox OAuth / Personal Access Token)</string>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelDropboxRemotePath">
+            <property name="text">
+             <string>Remote File Path:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="editDropboxRemotePath">
+            <property name="placeholderText">
+             <string>/Passwords/passwords.kdbx</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelDropboxAppKey">
+            <property name="text">
+             <string>App Key (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="editDropboxAppKey">
+            <property name="placeholderText">
+             <string>Leave blank to use default</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="labelDropboxAppSecret">
+            <property name="text">
+             <string>App Secret (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLineEdit" name="editDropboxAppSecret">
+            <property name="placeholderText">
+             <string>Leave blank to use default</string>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutTestDropbox">
+         <item>
+          <widget class="QPushButton" name="buttonTestDropbox">
+           <property name="text">
+            <string>Test Dropbox Connection</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="labelTestDropboxResult">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacerDropbox">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+
+     <!-- Tab 3: SFTP (SSH) -->
      <widget class="QWidget" name="tabSftp">
       <attribute name="title">
        <string>SFTP (SSH)</string>

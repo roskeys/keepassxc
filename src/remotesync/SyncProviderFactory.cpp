@@ -1,4 +1,5 @@
 #include "SyncProviderFactory.h"
+#include "providers/DropboxSyncProvider.h"
 #include "providers/GitSyncProvider.h"
 #include "providers/S3SyncProvider.h"
 #include "providers/SftpSyncProvider.h"
@@ -7,6 +8,8 @@
 ISyncProvider* SyncProviderFactory::create(RemoteSyncSettings::Protocol protocol, QObject* parent)
 {
     switch (protocol) {
+    case RemoteSyncSettings::Protocol::Dropbox:
+        return new DropboxSyncProvider(parent);
     case RemoteSyncSettings::Protocol::SFTP:
         return new SftpSyncProvider(parent);
     case RemoteSyncSettings::Protocol::S3:

@@ -3,6 +3,7 @@ if(WITH_XC_REMOTESYNC)
         RemoteSyncSettings.cpp
         SyncProviderFactory.cpp
         providers/WebDavSyncProvider.cpp
+        providers/DropboxSyncProvider.cpp
         providers/SftpSyncProvider.cpp
         providers/S3SyncProvider.cpp
         providers/GitSyncProvider.cpp
@@ -16,6 +17,7 @@ if(WITH_XC_REMOTESYNC)
         ISyncProvider.h
         SyncProviderFactory.h
         providers/WebDavSyncProvider.h
+        providers/DropboxSyncProvider.h
         providers/SftpSyncProvider.h
         providers/S3SyncProvider.h
         providers/GitSyncProvider.h

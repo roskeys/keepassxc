@@ -59,7 +59,14 @@ void RemoteSyncManager::onDatabaseUnlocked(QSharedPointer<Database> db)
         m_providers.append({RemoteSyncSettings::Protocol::WebDAV, QStringLiteral("WebDAV"), p, QString()});
     }
 
-    // 2. SFTP Provider
+    // 2. Dropbox Provider
+    if (m_settings.dropbox.enabled && !m_settings.dropbox.accessToken.isEmpty()) {
+        auto* p = SyncProviderFactory::create(RemoteSyncSettings::Protocol::Dropbox, this);
+        p->configure(m_settings);
+        m_providers.append({RemoteSyncSettings::Protocol::Dropbox, QStringLiteral("Dropbox"), p, QString()});
+    }
+
+    // 3. SFTP Provider
     if (m_settings.sftp.enabled && !m_settings.sftp.host.isEmpty()) {
         auto* p = SyncProviderFactory::create(RemoteSyncSettings::Protocol::SFTP, this);
         p->configure(m_settings);
@@ -192,6 +199,9 @@ void RemoteSyncManager::pullFromProviders(int index, std::function<void(bool suc
 
     QString remotePath;
     switch (entry.protocol) {
+    case RemoteSyncSettings::Protocol::Dropbox:
+        remotePath = m_settings.dropbox.remotePath;
+        break;
     case RemoteSyncSettings::Protocol::SFTP:
         remotePath = m_settings.sftp.remotePath;
         break;
@@ -349,6 +359,9 @@ void RemoteSyncManager::pushToProviders(int index,
 
     QString remotePath;
     switch (entry.protocol) {
+    case RemoteSyncSettings::Protocol::Dropbox:
+        remotePath = m_settings.dropbox.remotePath;
+        break;
     case RemoteSyncSettings::Protocol::SFTP:
         remotePath = m_settings.sftp.remotePath;
         break;
