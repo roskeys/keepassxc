@@ -1,9 +1,12 @@
 #ifndef KEEPASSXC_REMOTESYNCMANAGER_H
 #define KEEPASSXC_REMOTESYNCMANAGER_H
 
+#include <memory>
+#include <QList>
 #include <QObject>
 #include <QPointer>
 #include <QSharedPointer>
+#include <QStringList>
 #include <QTimer>
 #include "ISyncProvider.h"
 #include "RemoteSyncSettings.h"
@@ -43,15 +46,27 @@ signals:
     void syncProgress(int progress, const QString& message);
 
 private:
+    struct ProviderEntry
+    {
+        RemoteSyncSettings::Protocol protocol;
+        QString name;
+        ISyncProvider* provider = nullptr;
+        QString lastPushedETag;
+    };
+
     void startTimer();
     void stopTimer();
+    void pullFromProviders(int index, std::function<void(bool success)> completion);
+    void pushToProviders(int index,
+                         const QString& localTempPath,
+                         std::function<void(bool success)> completion,
+                         std::shared_ptr<QStringList> failedTargets = nullptr);
 
     QSharedPointer<Database> m_db;
     RemoteSyncSettings m_settings;
-    ISyncProvider* m_provider = nullptr;
+    QList<ProviderEntry> m_providers;
     SyncState m_state = SyncState::Idle;
     bool m_pushInProgress = false;
-    QString m_lastPushedETag;
     QTimer m_syncTimer;
     QTimer m_saveDebounceTimer;
 };

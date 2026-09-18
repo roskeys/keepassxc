@@ -1,16 +1,18 @@
 #include "SyncProviderFactory.h"
+#include "providers/S3SyncProvider.h"
+#include "providers/SftpSyncProvider.h"
 #include "providers/WebDavSyncProvider.h"
 
 ISyncProvider* SyncProviderFactory::create(RemoteSyncSettings::Protocol protocol, QObject* parent)
 {
     switch (protocol) {
-    case RemoteSyncSettings::Protocol::WebDAV:
-        return new WebDavSyncProvider(parent);
     case RemoteSyncSettings::Protocol::SFTP:
+        return new SftpSyncProvider(parent);
     case RemoteSyncSettings::Protocol::S3:
+        return new S3SyncProvider(parent);
+    case RemoteSyncSettings::Protocol::WebDAV:
     case RemoteSyncSettings::Protocol::FTPS:
     default:
-        // Default to WebDAV for now until plugins are built
         return new WebDavSyncProvider(parent);
     }
 }

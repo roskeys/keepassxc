@@ -518,6 +518,13 @@ void DatabaseWidget::replaceDatabase(QSharedPointer<Database> db)
     if (!m_remoteSyncManager) {
         m_remoteSyncManager = new RemoteSyncManager(this);
         connect(m_remoteSyncManager, &RemoteSyncManager::syncProgress, this, &DatabaseWidget::updateSyncProgress);
+        connect(m_remoteSyncManager, &RemoteSyncManager::syncStatusChanged, this, [this](RemoteSyncManager::SyncState state, const QString& msg) {
+            if (state == RemoteSyncManager::SyncState::Error) {
+                showErrorMessage(msg);
+            } else if (state == RemoteSyncManager::SyncState::Idle && !msg.isEmpty() && msg != tr("Idle")) {
+                showMessage(msg, MessageWidget::Information, true, 3000);
+            }
+        });
     }
     m_remoteSyncManager->onDatabaseUnlocked(m_db);
 #endif

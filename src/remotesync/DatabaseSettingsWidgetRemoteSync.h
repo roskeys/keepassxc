@@ -24,8 +24,10 @@ public:
     void saveSettings();
 
 private slots:
-    void onProtocolChanged(int index);
-    void onTestConnection();
+    void onBrowseSftpKey();
+    void onTestWebDavConnection();
+    void onTestSftpConnection();
+    void onTestS3Connection();
 
 private:
     QScopedPointer<Ui::DatabaseSettingsWidgetRemoteSync> m_ui;

@@ -6,115 +6,474 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>500</width>
-    <height>400</height>
+    <width>560</width>
+    <height>480</height>
    </rect>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayoutMain">
    <item>
-    <widget class="QCheckBox" name="checkEnableSync">
-     <property name="text">
-      <string>Enable Remote Database Synchronization</string>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
      </property>
+     <!-- Tab 1: WebDAV -->
+     <widget class="QWidget" name="tabWebDav">
+      <attribute name="title">
+       <string>WebDAV</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutWebDav">
+       <item>
+        <widget class="QCheckBox" name="checkWebDavEnabled">
+         <property name="text">
+          <string>Enable WebDAV Synchronization</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupWebDavSettings">
+         <property name="title">
+          <string>WebDAV Configuration</string>
+         </property>
+         <layout class="QFormLayout" name="formLayoutWebDav">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelWebDavUrl">
+            <property name="text">
+             <string>Server URL:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="editWebDavUrl">
+            <property name="placeholderText">
+             <string>https://webdav.example.com/dav</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelWebDavRemotePath">
+            <property name="text">
+             <string>Remote File Path:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="editWebDavRemotePath">
+            <property name="placeholderText">
+             <string>Credentials/passwords.kdbx</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelWebDavUsername">
+            <property name="text">
+             <string>Username:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="editWebDavUsername"/>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="labelWebDavPassword">
+            <property name="text">
+             <string>Password / Token:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLineEdit" name="editWebDavPassword">
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="labelWebDavVerifySsl">
+            <property name="text">
+             <string>SSL Verification:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QCheckBox" name="checkWebDavVerifySsl">
+            <property name="text">
+             <string>Verify SSL Certificates</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutTestWebDav">
+         <item>
+          <widget class="QPushButton" name="buttonTestWebDav">
+           <property name="text">
+            <string>Test WebDAV Connection</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="labelTestWebDavResult">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacerWebDav">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+
+     <!-- Tab 2: SFTP (SSH) -->
+     <widget class="QWidget" name="tabSftp">
+      <attribute name="title">
+       <string>SFTP (SSH)</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutSftp">
+       <item>
+        <widget class="QCheckBox" name="checkSftpEnabled">
+         <property name="text">
+          <string>Enable SFTP Synchronization</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupSftpSettings">
+         <property name="title">
+          <string>SFTP Configuration</string>
+         </property>
+         <layout class="QFormLayout" name="formLayoutSftp">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelSftpHost">
+            <property name="text">
+             <string>Host / Server IP:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="editSftpHost">
+            <property name="placeholderText">
+             <string>sftp.example.com or user@example.com</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelSftpPort">
+            <property name="text">
+             <string>Port:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QSpinBox" name="spinSftpPort">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>65535</number>
+            </property>
+            <property name="value">
+             <number>22</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelSftpRemotePath">
+            <property name="text">
+             <string>Remote File Path:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="editSftpRemotePath">
+            <property name="placeholderText">
+             <string>/home/user/Passwords.kdbx</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="labelSftpUsername">
+            <property name="text">
+             <string>Username:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLineEdit" name="editSftpUsername">
+            <property name="placeholderText">
+             <string>user</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="labelSftpKeyPath">
+            <property name="text">
+             <string>Private Key Path:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <layout class="QHBoxLayout" name="layoutKeyPath">
+            <item>
+             <widget class="QLineEdit" name="editSftpKeyPath">
+              <property name="placeholderText">
+               <string>~/.ssh/id_ed25519 (leave blank for default)</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="buttonBrowseSftpKey">
+              <property name="text">
+               <string>Browse...</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="labelSftpPassword">
+            <property name="text">
+             <string>Passphrase / Password:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QLineEdit" name="editSftpPassword">
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+            <property name="placeholderText">
+             <string>Key passphrase (or password if no key)</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutTestSftp">
+         <item>
+          <widget class="QPushButton" name="buttonTestSftp">
+           <property name="text">
+            <string>Test SFTP Connection</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="labelTestSftpResult">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacerSftp">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+
+     <!-- Tab 3: S3 / MinIO -->
+     <widget class="QWidget" name="tabS3">
+      <attribute name="title">
+       <string>S3 / MinIO</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutS3">
+       <item>
+        <widget class="QCheckBox" name="checkS3Enabled">
+         <property name="text">
+          <string>Enable S3 / MinIO Synchronization</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupS3Settings">
+         <property name="title">
+          <string>S3 / MinIO Configuration</string>
+         </property>
+         <layout class="QFormLayout" name="formLayoutS3">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelS3Endpoint">
+            <property name="text">
+             <string>Endpoint URL:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="editS3Endpoint">
+            <property name="placeholderText">
+             <string>https://s3.amazonaws.com or https://minio.example.com</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelS3Bucket">
+            <property name="text">
+             <string>Bucket Name:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="editS3Bucket">
+            <property name="placeholderText">
+             <string>my-passwords-bucket</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelS3Region">
+            <property name="text">
+             <string>Region:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="editS3Region">
+            <property name="text">
+             <string>us-east-1</string>
+            </property>
+            <property name="placeholderText">
+             <string>us-east-1</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="labelS3AccessKey">
+            <property name="text">
+             <string>Access Key ID:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLineEdit" name="editS3AccessKey"/>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="labelS3SecretKey">
+            <property name="text">
+             <string>Secret Access Key:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QLineEdit" name="editS3SecretKey">
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="labelS3RemotePath">
+            <property name="text">
+             <string>Object Key / Path:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QLineEdit" name="editS3RemotePath">
+            <property name="placeholderText">
+             <string>Credentials/passwords.kdbx</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="labelS3VerifySsl">
+            <property name="text">
+             <string>SSL Verification:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QCheckBox" name="checkS3VerifySsl">
+            <property name="text">
+             <string>Verify SSL Certificates</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutTestS3">
+         <item>
+          <widget class="QPushButton" name="buttonTestS3">
+           <property name="text">
+            <string>Test S3 Connection</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="labelTestS3Result">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacerS3">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
+
+   <!-- Global Settings -->
    <item>
-    <widget class="QGroupBox" name="groupSettings">
+    <widget class="QGroupBox" name="groupGlobalSettings">
      <property name="title">
-      <string>Remote Server Configuration</string>
+      <string>General Sync Settings</string>
      </property>
-     <layout class="QFormLayout" name="formLayout">
+     <layout class="QFormLayout" name="formLayoutGlobal">
       <item row="0" column="0">
-       <widget class="QLabel" name="labelProtocol">
+       <widget class="QLabel" name="labelInterval">
         <property name="text">
-         <string>Protocol:</string>
+         <string>Periodic Sync Interval (minutes):</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QComboBox" name="comboProtocol">
-        <item>
-         <property name="text">
-          <string>WebDAV</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>SFTP (SSH)</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>S3 / MinIO</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>FTPS</string>
-         </property>
-        </item>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="labelUrl">
-        <property name="text">
-         <string>Server URL / Endpoint:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLineEdit" name="editUrl">
-        <property name="placeholderText">
-         <string>https://storage.roskey.net/dav</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="labelRemotePath">
-        <property name="text">
-         <string>Remote File Path:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLineEdit" name="editRemotePath">
-        <property name="placeholderText">
-         <string>Credentials/passwords.kdbx</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="labelUsername">
-        <property name="text">
-         <string>Username / Access Key:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QLineEdit" name="editUsername"/>
-      </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="labelPassword">
-        <property name="text">
-         <string>Password / Token / Secret Key:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="QLineEdit" name="editPassword">
-        <property name="echoMode">
-         <enum>QLineEdit::Password</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="labelInterval">
-        <property name="text">
-         <string>Sync Interval (minutes):</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="1">
        <widget class="QSpinBox" name="spinInterval">
         <property name="minimum">
          <number>1</number>
@@ -127,56 +486,8 @@
         </property>
        </widget>
       </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="labelVerifySsl">
-        <property name="text">
-         <string>SSL Verification:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="QCheckBox" name="checkVerifySsl">
-        <property name="text">
-         <string>Verify SSL Certificates</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
      </layout>
     </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QPushButton" name="buttonTest">
-       <property name="text">
-        <string>Test Connection</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="labelTestResult">
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
    </item>
   </layout>
  </widget>

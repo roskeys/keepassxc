@@ -4,6 +4,7 @@
 #include "core/Database.h"
 #include "core/Metadata.h"
 
+// Legacy Keys
 static const QString KEY_ENABLED = QStringLiteral("KPXC_REMOTESYNC_ENABLED");
 static const QString KEY_PROTOCOL = QStringLiteral("KPXC_REMOTESYNC_PROTOCOL");
 static const QString KEY_URL = QStringLiteral("KPXC_REMOTESYNC_URL");
@@ -16,7 +17,34 @@ static const QString KEY_S3_BUCKET = QStringLiteral("KPXC_REMOTESYNC_S3_BUCKET")
 static const QString KEY_S3_REGION = QStringLiteral("KPXC_REMOTESYNC_S3_REGION");
 static const QString KEY_SFTP_KEYPATH = QStringLiteral("KPXC_REMOTESYNC_SFTP_KEYPATH");
 
-QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
+// WebDAV Keys
+static const QString KEY_WEBDAV_ENABLED = QStringLiteral("KPXC_REMOTESYNC_WEBDAV_ENABLED");
+static const QString KEY_WEBDAV_URL = QStringLiteral("KPXC_REMOTESYNC_WEBDAV_URL");
+static const QString KEY_WEBDAV_REMOTEPATH = QStringLiteral("KPXC_REMOTESYNC_WEBDAV_REMOTEPATH");
+static const QString KEY_WEBDAV_USERNAME = QStringLiteral("KPXC_REMOTESYNC_WEBDAV_USERNAME");
+static const QString KEY_WEBDAV_PASSWORD = QStringLiteral("KPXC_REMOTESYNC_WEBDAV_PASSWORD");
+static const QString KEY_WEBDAV_VERIFY_SSL = QStringLiteral("KPXC_REMOTESYNC_WEBDAV_VERIFY_SSL");
+
+// SFTP Keys
+static const QString KEY_SFTP_ENABLED = QStringLiteral("KPXC_REMOTESYNC_SFTP_ENABLED");
+static const QString KEY_SFTP_HOST = QStringLiteral("KPXC_REMOTESYNC_SFTP_HOST");
+static const QString KEY_SFTP_PORT = QStringLiteral("KPXC_REMOTESYNC_SFTP_PORT");
+static const QString KEY_SFTP_REMOTEPATH_NEW = QStringLiteral("KPXC_REMOTESYNC_SFTP_REMOTEPATH");
+static const QString KEY_SFTP_USERNAME = QStringLiteral("KPXC_REMOTESYNC_SFTP_USERNAME");
+static const QString KEY_SFTP_PASSWORD = QStringLiteral("KPXC_REMOTESYNC_SFTP_PASSWORD");
+static const QString KEY_SFTP_KEYPATH_NEW = QStringLiteral("KPXC_REMOTESYNC_SFTP_KEYPATH_NEW");
+
+// S3 Keys
+static const QString KEY_S3_ENABLED = QStringLiteral("KPXC_REMOTESYNC_S3_ENABLED");
+static const QString KEY_S3_ENDPOINT = QStringLiteral("KPXC_REMOTESYNC_S3_ENDPOINT");
+static const QString KEY_S3_BUCKET_NEW = QStringLiteral("KPXC_REMOTESYNC_S3_BUCKET_NEW");
+static const QString KEY_S3_REGION_NEW = QStringLiteral("KPXC_REMOTESYNC_S3_REGION_NEW");
+static const QString KEY_S3_ACCESSKEY = QStringLiteral("KPXC_REMOTESYNC_S3_ACCESSKEY");
+static const QString KEY_S3_SECRETKEY = QStringLiteral("KPXC_REMOTESYNC_S3_SECRETKEY");
+static const QString KEY_S3_REMOTEPATH_NEW = QStringLiteral("KPXC_REMOTESYNC_S3_REMOTEPATH");
+static const QString KEY_S3_VERIFY_SSL = QStringLiteral("KPXC_REMOTESYNC_S3_VERIFY_SSL");
+
+QString WebDavSettings::fullRemoteUrl(const QString& defaultFileName) const
 {
     QString trimmedUrl = url.trimmed();
     if (trimmedUrl.isEmpty()) {
@@ -45,6 +73,56 @@ QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
     return trimmedUrl + trimmedPath;
 }
 
+QString SftpSettings::fullRemoteUrl(const QString& defaultFileName) const
+{
+    QString cleanHost = host.trimmed();
+    if (cleanHost.startsWith(QLatin1String("sftp://"), Qt::CaseInsensitive)) {
+        cleanHost = cleanHost.mid(7);
+    }
+
+    QString path = remotePath.trimmed();
+    if (path.isEmpty()) {
+        path = defaultFileName.isEmpty() ? QStringLiteral("passwords.kdbx") : defaultFileName;
+    }
+    if (!path.startsWith(QLatin1Char('/'))) {
+        path.prepend(QLatin1Char('/'));
+    }
+
+    return QStringLiteral("sftp://%1%2%3:%4%5")
+        .arg(username.isEmpty() ? QString() : username + QLatin1Char('@'),
+             cleanHost,
+             QString(),
+             QString::number(port > 0 ? port : 22),
+             path);
+}
+
+QString S3Settings::fullRemoteUrl(const QString& defaultFileName) const
+{
+    QString path = remotePath.trimmed();
+    if (path.isEmpty()) {
+        path = defaultFileName.isEmpty() ? QStringLiteral("passwords.kdbx") : defaultFileName;
+    }
+    if (path.startsWith(QLatin1Char('/'))) {
+        path.remove(0, 1);
+    }
+
+    return QStringLiteral("s3://%1/%2").arg(bucket.trimmed(), path);
+}
+
+QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
+{
+    if (webdav.enabled) {
+        return webdav.fullRemoteUrl(defaultFileName);
+    }
+    if (sftp.enabled) {
+        return sftp.fullRemoteUrl(defaultFileName);
+    }
+    if (s3.enabled) {
+        return s3.fullRemoteUrl(defaultFileName);
+    }
+    return {};
+}
+
 QString RemoteSyncSettings::protocolToString(Protocol p)
 {
     switch (p) {
@@ -64,9 +142,11 @@ RemoteSyncSettings::Protocol RemoteSyncSettings::protocolFromString(const QStrin
 {
     if (str == QLatin1String("sftp")) {
         return Protocol::SFTP;
-    } else if (str == QLatin1String("s3")) {
+    }
+    if (str == QLatin1String("s3")) {
         return Protocol::S3;
-    } else if (str == QLatin1String("ftps")) {
+    }
+    if (str == QLatin1String("ftps")) {
         return Protocol::FTPS;
     }
     return Protocol::WebDAV;
@@ -80,25 +160,108 @@ RemoteSyncSettings RemoteSyncSettings::fromDatabase(const Database* db)
     }
 
     const auto* cd = db->metadata()->customData();
-    s.enabled = (cd->value(KEY_ENABLED) == QLatin1String("true"));
-    s.protocol = protocolFromString(cd->value(KEY_PROTOCOL));
-    s.url = cd->value(KEY_URL);
-    s.remotePath = cd->value(KEY_REMOTEPATH);
-    s.username = cd->value(KEY_USERNAME);
-    s.password = cd->value(KEY_PASSWORD);
 
-    bool ok = false;
-    int interval = cd->value(KEY_INTERVAL).toInt(&ok);
-    if (ok && interval >= 30) {
-        s.intervalSeconds = interval;
-    } else {
-        s.intervalSeconds = 300;
+    auto getVal = [cd](const QString& key, const QString& def = QString()) -> QString {
+        return cd->contains(key) ? cd->value(key) : def;
+    };
+
+    // Global interval
+    if (cd->contains(KEY_INTERVAL)) {
+        s.intervalSeconds = cd->value(KEY_INTERVAL).toInt();
+        if (s.intervalSeconds <= 0) {
+            s.intervalSeconds = 300;
+        }
     }
 
-    s.verifySsl = (cd->value(KEY_VERIFY_SSL) != QLatin1String("false"));
-    s.s3Bucket = cd->value(KEY_S3_BUCKET);
-    s.s3Region = cd->value(KEY_S3_REGION);
-    s.sftpKeyPath = cd->value(KEY_SFTP_KEYPATH);
+    // 1. WebDAV Settings
+    if (cd->contains(KEY_WEBDAV_ENABLED)) {
+        s.webdav.enabled = (cd->value(KEY_WEBDAV_ENABLED) == QLatin1String("true"));
+        s.webdav.url = cd->value(KEY_WEBDAV_URL);
+        s.webdav.remotePath = cd->value(KEY_WEBDAV_REMOTEPATH);
+        s.webdav.username = cd->value(KEY_WEBDAV_USERNAME);
+        s.webdav.password = cd->value(KEY_WEBDAV_PASSWORD);
+        s.webdav.verifySsl = (getVal(KEY_WEBDAV_VERIFY_SSL, QStringLiteral("true")) == QLatin1String("true"));
+    } else if (cd->contains(KEY_ENABLED) && cd->value(KEY_ENABLED) == QLatin1String("true")) {
+        // Legacy migration: if legacy sync was enabled with WebDAV
+        QString proto = cd->value(KEY_PROTOCOL);
+        if (proto.isEmpty() || proto == QLatin1String("webdav")) {
+            s.webdav.enabled = true;
+            s.webdav.url = cd->value(KEY_URL);
+            s.webdav.remotePath = cd->value(KEY_REMOTEPATH);
+            s.webdav.username = cd->value(KEY_USERNAME);
+            s.webdav.password = cd->value(KEY_PASSWORD);
+            s.webdav.verifySsl = (getVal(KEY_VERIFY_SSL, QStringLiteral("true")) == QLatin1String("true"));
+        }
+    }
+
+    // 2. SFTP Settings
+    if (cd->contains(KEY_SFTP_ENABLED)) {
+        s.sftp.enabled = (cd->value(KEY_SFTP_ENABLED) == QLatin1String("true"));
+        s.sftp.host = cd->value(KEY_SFTP_HOST);
+        s.sftp.port = getVal(KEY_SFTP_PORT, QStringLiteral("22")).toInt();
+        s.sftp.remotePath = cd->value(KEY_SFTP_REMOTEPATH_NEW);
+        s.sftp.username = cd->value(KEY_SFTP_USERNAME);
+        s.sftp.password = cd->value(KEY_SFTP_PASSWORD);
+        s.sftp.keyPath = cd->value(KEY_SFTP_KEYPATH_NEW);
+    } else if (cd->contains(KEY_ENABLED) && cd->value(KEY_PROTOCOL) == QLatin1String("sftp")) {
+        // Legacy migration for SFTP
+        s.sftp.enabled = (cd->value(KEY_ENABLED) == QLatin1String("true"));
+        s.sftp.host = cd->value(KEY_URL);
+        s.sftp.port = 22;
+        s.sftp.remotePath = cd->value(KEY_REMOTEPATH);
+        s.sftp.username = cd->value(KEY_USERNAME);
+        s.sftp.password = cd->value(KEY_PASSWORD);
+        s.sftp.keyPath = cd->value(KEY_SFTP_KEYPATH);
+    }
+
+    // 3. S3 Settings
+    if (cd->contains(KEY_S3_ENABLED)) {
+        s.s3.enabled = (cd->value(KEY_S3_ENABLED) == QLatin1String("true"));
+        s.s3.endpoint = cd->value(KEY_S3_ENDPOINT);
+        s.s3.bucket = cd->value(KEY_S3_BUCKET_NEW);
+        s.s3.region = getVal(KEY_S3_REGION_NEW, QStringLiteral("us-east-1"));
+        s.s3.accessKey = cd->value(KEY_S3_ACCESSKEY);
+        s.s3.secretKey = cd->value(KEY_S3_SECRETKEY);
+        s.s3.remotePath = cd->value(KEY_S3_REMOTEPATH_NEW);
+        s.s3.verifySsl = (getVal(KEY_S3_VERIFY_SSL, QStringLiteral("true")) == QLatin1String("true"));
+    } else if (cd->contains(KEY_ENABLED) && cd->value(KEY_PROTOCOL) == QLatin1String("s3")) {
+        // Legacy migration for S3
+        s.s3.enabled = (cd->value(KEY_ENABLED) == QLatin1String("true"));
+        s.s3.endpoint = cd->value(KEY_URL);
+        s.s3.bucket = cd->value(KEY_S3_BUCKET);
+        s.s3.region = getVal(KEY_S3_REGION, QStringLiteral("us-east-1"));
+        s.s3.accessKey = cd->value(KEY_USERNAME);
+        s.s3.secretKey = cd->value(KEY_PASSWORD);
+        s.s3.remotePath = cd->value(KEY_REMOTEPATH);
+        s.s3.verifySsl = (getVal(KEY_VERIFY_SSL, QStringLiteral("true")) == QLatin1String("true"));
+    }
+
+    // Populate legacy fields for compatibility
+    s.enabled = s.isAnyEnabled();
+    if (s.webdav.enabled) {
+        s.protocol = Protocol::WebDAV;
+        s.url = s.webdav.url;
+        s.remotePath = s.webdav.remotePath;
+        s.username = s.webdav.username;
+        s.password = s.webdav.password;
+        s.verifySsl = s.webdav.verifySsl;
+    } else if (s.sftp.enabled) {
+        s.protocol = Protocol::SFTP;
+        s.url = s.sftp.host;
+        s.remotePath = s.sftp.remotePath;
+        s.username = s.sftp.username;
+        s.password = s.sftp.password;
+        s.sftpKeyPath = s.sftp.keyPath;
+    } else if (s.s3.enabled) {
+        s.protocol = Protocol::S3;
+        s.url = s.s3.endpoint;
+        s.s3Bucket = s.s3.bucket;
+        s.s3Region = s.s3.region;
+        s.username = s.s3.accessKey;
+        s.password = s.s3.secretKey;
+        s.remotePath = s.s3.remotePath;
+        s.verifySsl = s.s3.verifySsl;
+    }
 
     return s;
 }
@@ -110,15 +273,61 @@ void RemoteSyncSettings::saveToDatabase(Database* db) const
     }
 
     auto* cd = db->metadata()->customData();
-    cd->set(KEY_ENABLED, enabled ? QStringLiteral("true") : QStringLiteral("false"));
-    cd->set(KEY_PROTOCOL, protocolToString(protocol));
-    cd->set(KEY_URL, url);
-    cd->set(KEY_REMOTEPATH, remotePath);
-    cd->set(KEY_USERNAME, username);
-    cd->set(KEY_PASSWORD, password);
+
+    // Global
+    cd->set(KEY_ENABLED, isAnyEnabled() ? QStringLiteral("true") : QStringLiteral("false"));
     cd->set(KEY_INTERVAL, QString::number(intervalSeconds));
-    cd->set(KEY_VERIFY_SSL, verifySsl ? QStringLiteral("true") : QStringLiteral("false"));
-    cd->set(KEY_S3_BUCKET, s3Bucket);
-    cd->set(KEY_S3_REGION, s3Region);
-    cd->set(KEY_SFTP_KEYPATH, sftpKeyPath);
+
+    // WebDAV
+    cd->set(KEY_WEBDAV_ENABLED, webdav.enabled ? QStringLiteral("true") : QStringLiteral("false"));
+    cd->set(KEY_WEBDAV_URL, webdav.url);
+    cd->set(KEY_WEBDAV_REMOTEPATH, webdav.remotePath);
+    cd->set(KEY_WEBDAV_USERNAME, webdav.username);
+    cd->set(KEY_WEBDAV_PASSWORD, webdav.password);
+    cd->set(KEY_WEBDAV_VERIFY_SSL, webdav.verifySsl ? QStringLiteral("true") : QStringLiteral("false"));
+
+    // SFTP
+    cd->set(KEY_SFTP_ENABLED, sftp.enabled ? QStringLiteral("true") : QStringLiteral("false"));
+    cd->set(KEY_SFTP_HOST, sftp.host);
+    cd->set(KEY_SFTP_PORT, QString::number(sftp.port > 0 ? sftp.port : 22));
+    cd->set(KEY_SFTP_REMOTEPATH_NEW, sftp.remotePath);
+    cd->set(KEY_SFTP_USERNAME, sftp.username);
+    cd->set(KEY_SFTP_PASSWORD, sftp.password);
+    cd->set(KEY_SFTP_KEYPATH_NEW, sftp.keyPath);
+
+    // S3
+    cd->set(KEY_S3_ENABLED, s3.enabled ? QStringLiteral("true") : QStringLiteral("false"));
+    cd->set(KEY_S3_ENDPOINT, s3.endpoint);
+    cd->set(KEY_S3_BUCKET_NEW, s3.bucket);
+    cd->set(KEY_S3_REGION_NEW, s3.region);
+    cd->set(KEY_S3_ACCESSKEY, s3.accessKey);
+    cd->set(KEY_S3_SECRETKEY, s3.secretKey);
+    cd->set(KEY_S3_REMOTEPATH_NEW, s3.remotePath);
+    cd->set(KEY_S3_VERIFY_SSL, s3.verifySsl ? QStringLiteral("true") : QStringLiteral("false"));
+
+    // Keep legacy keys updated for compatibility
+    if (webdav.enabled) {
+        cd->set(KEY_PROTOCOL, QStringLiteral("webdav"));
+        cd->set(KEY_URL, webdav.url);
+        cd->set(KEY_REMOTEPATH, webdav.remotePath);
+        cd->set(KEY_USERNAME, webdav.username);
+        cd->set(KEY_PASSWORD, webdav.password);
+        cd->set(KEY_VERIFY_SSL, webdav.verifySsl ? QStringLiteral("true") : QStringLiteral("false"));
+    } else if (sftp.enabled) {
+        cd->set(KEY_PROTOCOL, QStringLiteral("sftp"));
+        cd->set(KEY_URL, sftp.host);
+        cd->set(KEY_REMOTEPATH, sftp.remotePath);
+        cd->set(KEY_USERNAME, sftp.username);
+        cd->set(KEY_PASSWORD, sftp.password);
+        cd->set(KEY_SFTP_KEYPATH, sftp.keyPath);
+    } else if (s3.enabled) {
+        cd->set(KEY_PROTOCOL, QStringLiteral("s3"));
+        cd->set(KEY_URL, s3.endpoint);
+        cd->set(KEY_S3_BUCKET, s3.bucket);
+        cd->set(KEY_S3_REGION, s3.region);
+        cd->set(KEY_USERNAME, s3.accessKey);
+        cd->set(KEY_PASSWORD, s3.secretKey);
+        cd->set(KEY_REMOTEPATH, s3.remotePath);
+        cd->set(KEY_VERIFY_SSL, s3.verifySsl ? QStringLiteral("true") : QStringLiteral("false"));
+    }
 }
