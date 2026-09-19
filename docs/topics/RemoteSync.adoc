@@ -1,0 +1,98 @@
+= KeePassXC – Remote Synchronization
+include::.sharedheader[]
+:imagesdir: ../images
+
+// tag::content[]
+== Remote Database Synchronization
+KeePassXC provides built-in Remote Database Synchronization, allowing you to synchronize your `.kdbx` password database across devices using various cloud and remote protocols.
+
+=== Overview & Sync Behavior
+* *Automatic Two-Way Merge*: Whenever sync runs, KeePassXC downloads the latest remote version (if changed), performs an entry-by-entry timestamp merge with your local database to ensure no passwords or edits are lost, and pushes the merged result back to the remote destination.
+* *Trigger Conditions*:
+** Automatically upon opening / unlocking the database.
+** Automatically whenever the database is saved locally.
+** Periodically on a configurable timer (default: every 5 minutes).
+** Manually by clicking the *Synchronize Database* toolbar button or menu option (*Database -> Synchronize Database*).
+* *Multi-Cloud Support*: You can configure multiple remote providers simultaneously; KeePassXC will synchronize across all enabled targets.
+
+To configure remote synchronization, open your database and go to:
+_Database_ -> _Database Settings_ -> _Remote Sync_
+
+=== Google Drive Synchronization
+Google Drive uses OAuth 2.0 with permanent token auto-refresh.
+
+==== Step 1: Create OAuth 2.0 Credentials in Google Cloud Console
+1. Visit the https://console.cloud.google.com/[Google Cloud Console].
+2. Create a new project (e.g. `KeePassXC-Sync`).
+3. Enable the *Google Drive API*:
+   Go to _APIs & Services_ -> _Library_, search for *Google Drive API*, and click *Enable*.
+4. Configure the *OAuth Consent Screen*:
+   Select _External_, enter an app name (e.g. `KeePassXC Sync`), and add your Google account under _Test users_.
+5. Create Credentials:
+   Go to _APIs & Services_ -> _Credentials_ -> _Create Credentials_ -> _OAuth client ID_.
+   Choose _Web application_ (or _Desktop app_). Under _Authorized redirect URIs_, add:
+   `https://developers.google.com/oauthplayground`
+   Click _Create_ and copy your *Client ID* and *Client Secret*.
+
+==== Step 2: Generate Permanent Refresh Token
+1. Open the https://developers.google.com/oauthplayground/[Google OAuth 2.0 Playground].
+2. Click the *Gear icon (⚙)* in the top right:
+   Check *"Use your own OAuth credentials"*, and paste your *OAuth Client ID* and *OAuth Client Secret*.
+3. Under *Step 1: Select & authorize APIs*, scroll to *Drive API v3*, select `https://www.googleapis.com/auth/drive.file` (or `https://www.googleapis.com/auth/drive`), and click *Authorize APIs*.
+4. Sign in with your Google account. Under *Step 2*, click *Exchange authorization code for tokens*, and copy the value from the *Refresh token* field (starts with `1//0...`).
+
+==== Step 3: Configure KeePassXC
+In the *Google Drive* tab:
+* Check *Enable Google Drive Synchronization*.
+* Enter your *Client ID*, *Client Secret*, and *Refresh Token*.
+* (Optional) Enter a *Folder ID* from your browser address bar to save to a specific Drive folder.
+* Click *Test Google Drive Connection*.
+
+=== Dropbox Synchronization
+Dropbox supports scoped Personal Access Tokens or OAuth 2.0 Bearer tokens.
+
+1. Go to the https://www.dropbox.com/developers/apps[Dropbox App Console] and create a scoped app (recommended: _App folder_).
+2. Under the *Permissions* tab, check: `files.metadata.read`, `files.metadata.write`, `files.content.read`, `files.content.write`.
+3. Under the *Settings* tab, click *Generate* under _Generated access token_.
+4. In KeePassXC *Dropbox* tab:
+* Check *Enable Dropbox Synchronization*.
+* Paste your token in *OAuth Access Token*.
+* Specify *Remote File Path* (e.g. `/passwords.kdbx`).
+* Click *Test Dropbox Connection*.
+
+=== WebDAV (Nextcloud / ownCloud / Synology)
+1. Find your WebDAV endpoint:
+* Nextcloud/ownCloud: `https://cloud.example.com/remote.php/dav/files/USERNAME/`
+* Synology DSM: `https://nas.example.com:5006/home/`
+2. In KeePassXC *WebDAV* tab:
+* Check *Enable WebDAV Synchronization*.
+* Enter *Server URL*, *Remote File Path* (e.g. `Passwords/database.kdbx`), *Username*, and *Password* (or App Token).
+* Click *Test WebDAV Connection*.
+
+=== SFTP (SSH File Transfer Protocol)
+In KeePassXC *SFTP (SSH)* tab:
+* Check *Enable SFTP Synchronization*.
+* Enter *Host / Server* (e.g. `vps.example.com`), *Port* (default `22`), and *Remote File Path*.
+* Enter *Username*.
+* Select your SSH private key under *SSH Key Path* or enter your SSH password.
+* Click *Test SFTP Connection*.
+
+=== Amazon S3 / S3-Compatible Storage
+Works with AWS S3, Cloudflare R2, MinIO, Wasabi, and Backblaze B2.
+
+In KeePassXC *Amazon S3* tab:
+* Check *Enable Amazon S3 Synchronization*.
+* Enter *Endpoint URL* (or leave default for AWS), *Bucket Name*, *Region*, *Access Key ID*, *Secret Access Key*, and *Remote File Path / Object Key*.
+* Click *Test S3 Connection*.
+
+=== Git Repository Synchronization
+Syncs database revisions using Git version control via HTTPS or SSH (GitHub, GitLab, Gitea).
+
+In KeePassXC *Git Repository* tab:
+* Check *Enable Git Synchronization*.
+* Enter *Repository URL* (`git@github.com:...` or `https://github.com/...`).
+* Enter *Branch* (default `main`) and *Remote File Path* (default `passwords.kdbx`).
+* Provide SSH Key path (for SSH) or Username + Personal Access Token (for HTTPS).
+* Click *Test Git Connection*.
+
+// end::content[]

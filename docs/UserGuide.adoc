@@ -31,6 +31,8 @@ include::topics/ImportExport.adoc[tags=*]
 
 include::topics/KeeShare.adoc[tags=*]
 
+include::topics/RemoteSync.adoc[tags=*]
+
 include::topics/BrowserIntegration.adoc[tags=*]
 
 include::topics/Passkeys.adoc[tags=*]
