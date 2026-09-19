@@ -21,6 +21,11 @@ RemoteSyncManager::RemoteSyncManager(QObject* parent)
 
     m_saveDebounceTimer.setSingleShot(true);
     m_saveDebounceTimer.setInterval(2000);
+    connect(&m_saveDebounceTimer, &QTimer::timeout, this, [this]() {
+        if (m_db && m_state == SyncState::Idle) {
+            pushDatabase();
+        }
+    });
 }
 
 RemoteSyncManager::~RemoteSyncManager()
@@ -38,11 +43,24 @@ bool RemoteSyncManager::isPushInProgress() const
     return m_pushInProgress;
 }
 
-void RemoteSyncManager::onDatabaseUnlocked(QSharedPointer<Database> db)
+void RemoteSyncManager::clearProviders()
 {
-    onDatabaseLocked(); // clean up any previous instance
+    stopTimer();
+    m_saveDebounceTimer.stop();
 
-    m_db = db;
+    for (auto& entry : m_providers) {
+        if (entry.provider) {
+            entry.provider->cancelAll();
+            entry.provider->deleteLater();
+        }
+    }
+    m_providers.clear();
+}
+
+void RemoteSyncManager::initProviders()
+{
+    clearProviders();
+
     if (!m_db) {
         return;
     }
@@ -73,47 +91,52 @@ void RemoteSyncManager::onDatabaseUnlocked(QSharedPointer<Database> db)
         m_providers.append({RemoteSyncSettings::Protocol::SFTP, QStringLiteral("SFTP"), p, QString()});
     }
 
-    // 3. S3 Provider
+    // 4. S3 Provider
     if (m_settings.s3.enabled && !m_settings.s3.endpoint.isEmpty()) {
         auto* p = SyncProviderFactory::create(RemoteSyncSettings::Protocol::S3, this);
         p->configure(m_settings);
         m_providers.append({RemoteSyncSettings::Protocol::S3, QStringLiteral("S3"), p, QString()});
     }
 
-    // 4. Git Provider
+    // 5. Git Provider
     if (m_settings.git.enabled && !m_settings.git.repoUrl.isEmpty()) {
         auto* p = SyncProviderFactory::create(RemoteSyncSettings::Protocol::Git, this);
         p->configure(m_settings);
         m_providers.append({RemoteSyncSettings::Protocol::Git, QStringLiteral("Git"), p, QString()});
     }
 
-    if (m_providers.isEmpty()) {
+    if (!m_providers.isEmpty()) {
+        startTimer();
+    }
+}
+
+void RemoteSyncManager::reloadSettings()
+{
+    if (!m_db) {
         return;
     }
 
-    connect(&m_saveDebounceTimer, &QTimer::timeout, this, [this]() {
-        if (m_db && m_state == SyncState::Idle) {
-            pushDatabase();
-        }
-    });
+    initProviders();
+}
 
-    startTimer();
-    pullAndMerge();
+void RemoteSyncManager::onDatabaseUnlocked(QSharedPointer<Database> db)
+{
+    onDatabaseLocked(); // clean up any previous instance
+
+    m_db = db;
+    if (!m_db) {
+        return;
+    }
+
+    initProviders();
+    if (!m_providers.isEmpty()) {
+        pullAndMerge();
+    }
 }
 
 void RemoteSyncManager::onDatabaseLocked()
 {
-    stopTimer();
-    m_saveDebounceTimer.stop();
-
-    for (auto& entry : m_providers) {
-        if (entry.provider) {
-            entry.provider->cancelAll();
-            entry.provider->deleteLater();
-        }
-    }
-    m_providers.clear();
-
+    clearProviders();
     m_db.clear();
     m_state = SyncState::Idle;
     m_pushInProgress = false;
@@ -129,8 +152,11 @@ void RemoteSyncManager::onDatabaseSaved(QSharedPointer<Database> db)
         return;
     }
 
-    m_settings = RemoteSyncSettings::fromDatabase(m_db.data());
-    if (!m_settings.isAnyEnabled()) {
+    if (m_providers.isEmpty()) {
+        initProviders();
+    }
+
+    if (m_providers.isEmpty()) {
         return;
     }
 
@@ -163,9 +189,74 @@ void RemoteSyncManager::testConnection(const RemoteSyncSettings& settings, SyncC
     });
 }
 
+void RemoteSyncManager::fullSync(std::function<void(bool success)> completion)
+{
+    if (!m_db) {
+        if (completion) {
+            completion(false);
+        }
+        return;
+    }
+
+    if (m_providers.isEmpty()) {
+        initProviders();
+    }
+
+    if (m_providers.isEmpty()) {
+        QString msg = tr("No remote sync providers configured.");
+        emit syncStatusChanged(SyncState::Idle, msg);
+        emit syncProgress(100, msg);
+        QTimer::singleShot(2500, this, [this]() { emit syncProgress(-1, QString()); });
+        if (completion) {
+            completion(false);
+        }
+        return;
+    }
+
+    if (m_state == SyncState::Pulling || m_state == SyncState::Pushing) {
+        if (completion) {
+            completion(false);
+        }
+        return;
+    }
+
+    pullAndMerge([this, completion](bool pullOk) {
+        Q_UNUSED(pullOk);
+        if (!m_db || m_providers.isEmpty()) {
+            if (completion) {
+                completion(false);
+            }
+            return;
+        }
+        pushDatabase(completion);
+    });
+}
+
 void RemoteSyncManager::pullAndMerge(std::function<void(bool success)> completion)
 {
-    if (m_state != SyncState::Idle || m_providers.isEmpty() || !m_db) {
+    if (!m_db) {
+        if (completion) {
+            completion(false);
+        }
+        return;
+    }
+
+    if (m_providers.isEmpty()) {
+        initProviders();
+    }
+
+    if (m_providers.isEmpty()) {
+        QString msg = tr("No remote sync providers configured.");
+        emit syncStatusChanged(SyncState::Idle, msg);
+        emit syncProgress(100, msg);
+        QTimer::singleShot(2500, this, [this]() { emit syncProgress(-1, QString()); });
+        if (completion) {
+            completion(false);
+        }
+        return;
+    }
+
+    if (m_state == SyncState::Pulling || m_state == SyncState::Pushing) {
         if (completion) {
             completion(false);
         }
@@ -276,7 +367,29 @@ void RemoteSyncManager::pullFromProviders(int index, std::function<void(bool suc
 
 void RemoteSyncManager::pushDatabase(std::function<void(bool success)> completion)
 {
-    if (m_state != SyncState::Idle || m_providers.isEmpty() || !m_db) {
+    if (!m_db) {
+        if (completion) {
+            completion(false);
+        }
+        return;
+    }
+
+    if (m_providers.isEmpty()) {
+        initProviders();
+    }
+
+    if (m_providers.isEmpty()) {
+        QString msg = tr("No remote sync providers configured.");
+        emit syncStatusChanged(SyncState::Idle, msg);
+        emit syncProgress(100, msg);
+        QTimer::singleShot(2500, this, [this]() { emit syncProgress(-1, QString()); });
+        if (completion) {
+            completion(false);
+        }
+        return;
+    }
+
+    if (m_state == SyncState::Pulling || m_state == SyncState::Pushing) {
         if (completion) {
             completion(false);
         }
@@ -288,7 +401,8 @@ void RemoteSyncManager::pushDatabase(std::function<void(bool success)> completio
     // Save database to a temporary local file
     auto* localTemp = new QTemporaryFile(this);
     if (!localTemp->open()) {
-        m_state = SyncState::Error;
+        m_state = SyncState::Idle;
+        emit syncStatusChanged(SyncState::Error, tr("Cannot create local temporary file for sync"));
         delete localTemp;
         if (completion) {
             completion(false);
@@ -298,16 +412,22 @@ void RemoteSyncManager::pushDatabase(std::function<void(bool success)> completio
 
     QString localTempPath = localTemp->fileName();
     localTemp->close();
+    // Remove the 0-byte file created by QTemporaryFile::open() so QFile::copy succeeds
+    QFile::remove(localTempPath);
 
     bool saved = false;
-    if (QFile::exists(m_db->filePath())) {
+    if (!m_db->filePath().isEmpty() && QFile::exists(m_db->filePath())) {
         saved = QFile::copy(m_db->filePath(), localTempPath);
     } else {
         saved = m_db->saveAs(localTempPath, Database::DirectWrite);
     }
 
     if (!saved) {
-        m_state = SyncState::Error;
+        m_state = SyncState::Idle;
+        QString saveErr = tr("Failed to prepare database snapshot for upload");
+        emit syncStatusChanged(SyncState::Error, saveErr);
+        emit syncProgress(100, saveErr);
+        QTimer::singleShot(3000, this, [this]() { emit syncProgress(-1, QString()); });
         delete localTemp;
         if (completion) {
             completion(false);

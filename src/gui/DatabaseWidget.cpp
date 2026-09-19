@@ -221,7 +221,17 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     connect(m_historyEditEntryWidget, SIGNAL(editFinished(bool)), SLOT(switchBackToEntryEdit()));
     connect(m_editGroupWidget, SIGNAL(editFinished(bool)), SLOT(switchToMainView(bool)));
     connect(m_reportsDialog, SIGNAL(editFinished(bool)), SLOT(switchToMainView(bool)));
-    connect(m_databaseSettingDialog, SIGNAL(editFinished(bool)), SLOT(switchToMainView(bool)));
+    connect(m_databaseSettingDialog, &DatabaseSettingsDialog::editFinished, this, [this](bool accepted) {
+        switchToMainView(accepted);
+#ifdef WITH_XC_REMOTESYNC
+        if (accepted) {
+            if (m_remoteSyncManager) {
+                m_remoteSyncManager->reloadSettings();
+            }
+            emit databaseNonDataChanged();
+        }
+#endif
+    });
     connect(m_databaseOpenWidget, SIGNAL(dialogFinished(bool)), SLOT(loadDatabase(bool)));
     connect(this, SIGNAL(currentChanged(int)), SLOT(emitCurrentModeChanged()));
     connect(this, SIGNAL(requestGlobalAutoType(const QString&)), parent, SLOT(performGlobalAutoType(const QString&)));
@@ -1258,9 +1268,19 @@ void DatabaseWidget::connectDatabaseSignals()
     connect(m_db.data(), &Database::databaseSaved, this, &DatabaseWidget::databaseSaved);
 #if defined(WITH_XC_REMOTESYNC)
     connect(m_db.data(), &Database::databaseSaved, this, [this]() {
-        if (m_remoteSyncManager) {
-            m_remoteSyncManager->onDatabaseSaved(m_db);
+        if (!m_remoteSyncManager) {
+            m_remoteSyncManager = new RemoteSyncManager(this);
+            connect(m_remoteSyncManager, &RemoteSyncManager::syncProgress, this, &DatabaseWidget::updateSyncProgress);
+            connect(m_remoteSyncManager, &RemoteSyncManager::syncStatusChanged, this, [this](RemoteSyncManager::SyncState state, const QString& msg) {
+                if (state == RemoteSyncManager::SyncState::Error) {
+                    showErrorMessage(msg);
+                } else if (state == RemoteSyncManager::SyncState::Idle && !msg.isEmpty() && msg != tr("Idle")) {
+                    showMessage(msg, MessageWidget::Information, true, 3000);
+                }
+            });
+            m_remoteSyncManager->onDatabaseUnlocked(m_db);
         }
+        m_remoteSyncManager->onDatabaseSaved(m_db);
     });
 #endif
     connect(m_db.data(), &Database::databaseFileChanged, this, &DatabaseWidget::reloadDatabaseFile);
@@ -1503,9 +1523,24 @@ RemoteSyncManager* DatabaseWidget::remoteSyncManager() const
 
 void DatabaseWidget::manualRemoteSync()
 {
-    if (m_remoteSyncManager && m_db) {
-        m_remoteSyncManager->pullAndMerge();
+    if (!m_db) {
+        return;
     }
+
+    if (!m_remoteSyncManager) {
+        m_remoteSyncManager = new RemoteSyncManager(this);
+        connect(m_remoteSyncManager, &RemoteSyncManager::syncProgress, this, &DatabaseWidget::updateSyncProgress);
+        connect(m_remoteSyncManager, &RemoteSyncManager::syncStatusChanged, this, [this](RemoteSyncManager::SyncState state, const QString& msg) {
+            if (state == RemoteSyncManager::SyncState::Error) {
+                showErrorMessage(msg);
+            } else if (state == RemoteSyncManager::SyncState::Idle && !msg.isEmpty() && msg != tr("Idle")) {
+                showMessage(msg, MessageWidget::Information, true, 3000);
+            }
+        });
+        m_remoteSyncManager->onDatabaseUnlocked(m_db);
+    }
+
+    m_remoteSyncManager->fullSync();
 }
 #endif
 

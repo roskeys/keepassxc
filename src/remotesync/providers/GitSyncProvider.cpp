@@ -85,12 +85,12 @@ void GitSyncProvider::runGitCommand(const QStringList& args,
         }
     }
 
-    // Configure SSH command if custom key is specified
+    // Configure SSH command (ignore host key check and redirect known_hosts to /dev/null to avoid permission errors)
     if (!g.keyPath.isEmpty()) {
-        QString sshCmd = QStringLiteral("ssh -i \"%1\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new").arg(g.keyPath);
+        QString sshCmd = QStringLiteral("ssh -i \"%1\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR").arg(g.keyPath);
         env.insert(QStringLiteral("GIT_SSH_COMMAND"), sshCmd);
     } else {
-        env.insert(QStringLiteral("GIT_SSH_COMMAND"), QStringLiteral("ssh -o StrictHostKeyChecking=accept-new"));
+        env.insert(QStringLiteral("GIT_SSH_COMMAND"), QStringLiteral("ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"));
     }
 
     // Configure git author
@@ -178,18 +178,38 @@ void GitSyncProvider::ensureCloned(std::function<void(bool success, const QStrin
     QString branch = g.branch.trimmed().isEmpty() ? QStringLiteral("main") : g.branch.trimmed();
 
     if (dir.exists() && QFile::exists(repoDir + QStringLiteral("/.git"))) {
-        // Already cloned, perform fetch and pull
+        // Already cloned, perform fetch
         runGitCommand({QStringLiteral("fetch"), QStringLiteral("origin")}, repoDir, [this, repoDir, branch, onReady](bool fetchOk, int, const QString&, const QString& fetchErr) {
             if (!fetchOk) {
                 if (onReady) onReady(false, fetchErr);
                 return;
             }
 
-            // Checkout branch
-            runGitCommand({QStringLiteral("checkout"), branch}, repoDir, [this, repoDir, branch, onReady](bool, int, const QString&, const QString&) {
-                runGitCommand({QStringLiteral("pull"), QStringLiteral("origin"), branch}, repoDir, [onReady](bool pullOk, int, const QString&, const QString& pullErr) {
-                    if (onReady) onReady(pullOk, pullOk ? QString() : pullErr);
-                });
+            // Check if remote ref exists: git rev-parse --verify origin/<branch>
+            runGitCommand({QStringLiteral("rev-parse"), QStringLiteral("--verify"), QStringLiteral("origin/") + branch}, repoDir, [this, repoDir, branch, onReady](bool refOk, int, const QString&, const QString&) {
+                if (refOk) {
+                    // Remote branch exists: checkout and pull
+                    runGitCommand({QStringLiteral("checkout"), branch}, repoDir, [this, repoDir, branch, onReady](bool checkoutOk, int, const QString&, const QString&) {
+                        if (!checkoutOk) {
+                            // If local branch didn't exist yet, track remote branch
+                            runGitCommand({QStringLiteral("checkout"), QStringLiteral("-B"), branch, QStringLiteral("origin/") + branch}, repoDir, [this, repoDir, branch, onReady](bool, int, const QString&, const QString&) {
+                                runGitCommand({QStringLiteral("pull"), QStringLiteral("origin"), branch}, repoDir, [onReady](bool pullOk, int, const QString&, const QString& pullErr) {
+                                    if (onReady) onReady(pullOk, pullOk ? QString() : pullErr);
+                                });
+                            });
+                            return;
+                        }
+                        runGitCommand({QStringLiteral("pull"), QStringLiteral("origin"), branch}, repoDir, [onReady](bool pullOk, int, const QString&, const QString& pullErr) {
+                            if (onReady) onReady(pullOk, pullOk ? QString() : pullErr);
+                        });
+                    });
+                } else {
+                    // Remote branch does not exist yet (e.g. empty repo or new branch)
+                    // Ensure local branch is checked out / created
+                    runGitCommand({QStringLiteral("checkout"), QStringLiteral("-B"), branch}, repoDir, [onReady](bool, int, const QString&, const QString&) {
+                        if (onReady) onReady(true, QString());
+                    });
+                }
             });
         });
         return;
@@ -210,8 +230,8 @@ void GitSyncProvider::ensureCloned(std::function<void(bool success, const QStrin
             return;
         }
 
-        // Switch to branch if specified
-        runGitCommand({QStringLiteral("checkout"), branch}, repoDir, [onReady](bool, int, const QString&, const QString&) {
+        // Switch to or create branch if needed
+        runGitCommand({QStringLiteral("checkout"), QStringLiteral("-B"), branch}, repoDir, [onReady](bool, int, const QString&, const QString&) {
             if (onReady) onReady(true, QString());
         });
     });
@@ -383,8 +403,8 @@ void GitSyncProvider::moveFile(const QString& srcRemotePath, const QString& dest
             Q_UNUSED(commitOk);
             Q_UNUSED(commitErr);
 
-            // Push to remote repository
-            runGitCommand({QStringLiteral("push"), QStringLiteral("origin"), branch}, repoDir, [cb](bool pushOk, int, const QString&, const QString& pushErr) {
+            // Push to remote repository (use -u to set upstream branch if creating it)
+            runGitCommand({QStringLiteral("push"), QStringLiteral("-u"), QStringLiteral("origin"), branch}, repoDir, [cb](bool pushOk, int, const QString&, const QString& pushErr) {
                 SyncResult res;
                 if (pushOk) {
                     res.status = SyncResult::Status::Success;

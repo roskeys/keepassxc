@@ -256,11 +256,67 @@ void DropboxSyncProvider::uploadFile(const QString& localPath, const QString& re
         int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         res.httpStatusCode = status;
 
+        QByteArray errBody = reply->readAll();
+        QString detailMsg;
+        if (!errBody.isEmpty()) {
+            detailMsg = QString::fromUtf8(errBody).trimmed();
+        }
+
         if (reply->error() == QNetworkReply::NoError && status == 200) {
             res.status = SyncResult::Status::Success;
+        } else if (status == 401) {
+            res.status = SyncResult::Status::AuthError;
+            res.errorMessage = detailMsg.isEmpty() ? QStringLiteral("Dropbox access token invalid or expired") : detailMsg;
         } else {
             res.status = SyncResult::Status::NetworkError;
-            res.errorMessage = reply->errorString();
+            res.errorMessage = detailMsg.isEmpty() ? reply->errorString() : detailMsg;
+        }
+
+        reply->deleteLater();
+        if (cb) cb(res);
+    });
+}
+
+void DropboxSyncProvider::deleteFile(const QString& remotePath, SyncCallback cb)
+{
+    QString path = normalizePath(remotePath);
+
+    QUrl url(QStringLiteral("https://api.dropboxapi.com/2/files/delete_v2"));
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    applyAuth(req);
+
+    QJsonObject body;
+    body[QStringLiteral("path")] = path;
+    QByteArray payload = QJsonDocument(body).toJson(QJsonDocument::Compact);
+
+    QNetworkReply* reply = getNetMgr()->post(req, payload);
+    m_activeReplies.append(reply);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, cb]() {
+        m_activeReplies.removeAll(reply);
+        SyncResult res;
+        int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        res.httpStatusCode = status;
+
+        QByteArray errBody = reply->readAll();
+        QString detailMsg;
+        if (!errBody.isEmpty()) {
+            detailMsg = QString::fromUtf8(errBody).trimmed();
+        }
+
+        if (reply->error() == QNetworkReply::NoError && status == 200) {
+            res.status = SyncResult::Status::Success;
+        } else if (status == 409) {
+            // Already gone or not found is acceptable when deleting before overwrite
+            res.status = SyncResult::Status::NotFound;
+            res.errorMessage = detailMsg;
+        } else if (status == 401) {
+            res.status = SyncResult::Status::AuthError;
+            res.errorMessage = detailMsg.isEmpty() ? QStringLiteral("Dropbox access token invalid or expired") : detailMsg;
+        } else {
+            res.status = SyncResult::Status::NetworkError;
+            res.errorMessage = detailMsg.isEmpty() ? reply->errorString() : detailMsg;
         }
 
         reply->deleteLater();
@@ -288,17 +344,83 @@ void DropboxSyncProvider::moveFile(const QString& srcRemotePath, const QString& 
     QNetworkReply* reply = getNetMgr()->post(req, payload);
     m_activeReplies.append(reply);
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, cb]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, src, dest, cb]() {
         m_activeReplies.removeAll(reply);
         SyncResult res;
         int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         res.httpStatusCode = status;
 
+        QByteArray errBody = reply->readAll();
+        QString detailMsg;
+        if (!errBody.isEmpty()) {
+            detailMsg = QString::fromUtf8(errBody).trimmed();
+        }
+
         if (reply->error() == QNetworkReply::NoError && status == 200) {
             res.status = SyncResult::Status::Success;
+            reply->deleteLater();
+            if (cb) cb(res);
+            return;
+        }
+
+        // If destination already exists, Dropbox returns 409 conflict.
+        // Delete existing destination and retry move once.
+        if (status == 409 && (detailMsg.contains(QStringLiteral("conflict")) || detailMsg.contains(QStringLiteral("to")))) {
+            reply->deleteLater();
+            deleteFile(dest, [this, src, dest, cb](const SyncResult& delRes) {
+                Q_UNUSED(delRes);
+
+                // Second move attempt after deleting old dest
+                QUrl retryUrl(QStringLiteral("https://api.dropboxapi.com/2/files/move_v2"));
+                QNetworkRequest retryReq(retryUrl);
+                retryReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+                applyAuth(retryReq);
+
+                QJsonObject retryBody;
+                retryBody[QStringLiteral("from_path")] = src;
+                retryBody[QStringLiteral("to_path")] = dest;
+                retryBody[QStringLiteral("autorename")] = false;
+                retryBody[QStringLiteral("allow_shared_folder")] = true;
+                QByteArray retryPayload = QJsonDocument(retryBody).toJson(QJsonDocument::Compact);
+
+                QNetworkReply* retryReply = getNetMgr()->post(retryReq, retryPayload);
+                m_activeReplies.append(retryReply);
+
+                connect(retryReply, &QNetworkReply::finished, this, [this, retryReply, cb]() {
+                    m_activeReplies.removeAll(retryReply);
+                    SyncResult rRes;
+                    int rStatus = retryReply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+                    rRes.httpStatusCode = rStatus;
+
+                    QByteArray rErrBody = retryReply->readAll();
+                    QString rDetailMsg;
+                    if (!rErrBody.isEmpty()) {
+                        rDetailMsg = QString::fromUtf8(rErrBody).trimmed();
+                    }
+
+                    if (retryReply->error() == QNetworkReply::NoError && rStatus == 200) {
+                        rRes.status = SyncResult::Status::Success;
+                    } else if (rStatus == 401) {
+                        rRes.status = SyncResult::Status::AuthError;
+                        rRes.errorMessage = rDetailMsg.isEmpty() ? QStringLiteral("Dropbox access token invalid or expired") : rDetailMsg;
+                    } else {
+                        rRes.status = SyncResult::Status::NetworkError;
+                        rRes.errorMessage = rDetailMsg.isEmpty() ? retryReply->errorString() : rDetailMsg;
+                    }
+
+                    retryReply->deleteLater();
+                    if (cb) cb(rRes);
+                });
+            });
+            return;
+        }
+
+        if (status == 401) {
+            res.status = SyncResult::Status::AuthError;
+            res.errorMessage = detailMsg.isEmpty() ? QStringLiteral("Dropbox access token invalid or expired") : detailMsg;
         } else {
             res.status = SyncResult::Status::NetworkError;
-            res.errorMessage = reply->errorString();
+            res.errorMessage = detailMsg.isEmpty() ? reply->errorString() : detailMsg;
         }
 
         reply->deleteLater();

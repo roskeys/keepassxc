@@ -1087,7 +1087,7 @@ void MainWindow::updateMenuActionState()
     m_ui->actionLockDatabaseToolbar->setEnabled(hasLockableDatabase);
     m_ui->actionDatabaseSettings->setEnabled(inDatabase || inDatabaseSettings);
 #ifdef WITH_XC_REMOTESYNC
-    bool syncEnabled = (databaseUnlocked && dbWidget && dbWidget->database() && RemoteSyncSettings::fromDatabase(dbWidget->database().data()).enabled);
+    bool syncEnabled = (databaseUnlocked && dbWidget && dbWidget->database() && RemoteSyncSettings::fromDatabase(dbWidget->database().data()).isAnyEnabled());
     m_ui->actionRemoteSync->setVisible(syncEnabled);
     m_ui->actionRemoteSync->setEnabled(syncEnabled);
 #endif

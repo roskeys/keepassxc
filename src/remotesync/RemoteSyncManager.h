@@ -36,7 +36,9 @@ public slots:
     void onDatabaseUnlocked(QSharedPointer<Database> db);
     void onDatabaseLocked();
     void onDatabaseSaved(QSharedPointer<Database> db);
+    void reloadSettings();
 
+    void fullSync(std::function<void(bool success)> completion = nullptr);
     void pullAndMerge(std::function<void(bool success)> completion = nullptr);
     void pushDatabase(std::function<void(bool success)> completion = nullptr);
     void testConnection(const RemoteSyncSettings& settings, SyncCallback cb);
@@ -54,6 +56,8 @@ private:
         QString lastPushedETag;
     };
 
+    void initProviders();
+    void clearProviders();
     void startTimer();
     void stopTimer();
     void pullFromProviders(int index, std::function<void(bool success)> completion);

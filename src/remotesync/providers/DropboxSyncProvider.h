@@ -23,6 +23,7 @@ public:
     void downloadFile(const QString& remotePath, const QString& localTempPath, SyncCallback cb) override;
     void uploadFile(const QString& localPath, const QString& remoteTmpPath, SyncCallback cb) override;
     void moveFile(const QString& srcRemotePath, const QString& destRemotePath, SyncCallback cb) override;
+    void deleteFile(const QString& remotePath, SyncCallback cb);
     void cancelAll() override;
 
 private:
