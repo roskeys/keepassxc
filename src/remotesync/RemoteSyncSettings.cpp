@@ -32,6 +32,15 @@ static const QString KEY_DROPBOX_REMOTEPATH = QStringLiteral("KPXC_REMOTESYNC_DR
 static const QString KEY_DROPBOX_APPKEY = QStringLiteral("KPXC_REMOTESYNC_DROPBOX_APPKEY");
 static const QString KEY_DROPBOX_APPSECRET = QStringLiteral("KPXC_REMOTESYNC_DROPBOX_APPSECRET");
 
+// Google Drive Keys
+static const QString KEY_GDRIVE_ENABLED = QStringLiteral("KPXC_REMOTESYNC_GDRIVE_ENABLED");
+static const QString KEY_GDRIVE_TOKEN = QStringLiteral("KPXC_REMOTESYNC_GDRIVE_TOKEN");
+static const QString KEY_GDRIVE_REFRESH_TOKEN = QStringLiteral("KPXC_REMOTESYNC_GDRIVE_REFRESH_TOKEN");
+static const QString KEY_GDRIVE_CLIENT_ID = QStringLiteral("KPXC_REMOTESYNC_GDRIVE_CLIENT_ID");
+static const QString KEY_GDRIVE_CLIENT_SECRET = QStringLiteral("KPXC_REMOTESYNC_GDRIVE_CLIENT_SECRET");
+static const QString KEY_GDRIVE_REMOTEPATH = QStringLiteral("KPXC_REMOTESYNC_GDRIVE_REMOTEPATH");
+static const QString KEY_GDRIVE_FOLDERID = QStringLiteral("KPXC_REMOTESYNC_GDRIVE_FOLDERID");
+
 // SFTP Keys
 static const QString KEY_SFTP_ENABLED = QStringLiteral("KPXC_REMOTESYNC_SFTP_ENABLED");
 static const QString KEY_SFTP_HOST = QStringLiteral("KPXC_REMOTESYNC_SFTP_HOST");
@@ -148,6 +157,18 @@ QString DropboxSettings::fullRemoteUrl(const QString& defaultFileName) const
     return QStringLiteral("dropbox:%1").arg(path);
 }
 
+QString GoogleDriveSettings::fullRemoteUrl(const QString& defaultFileName) const
+{
+    QString path = remotePath.trimmed();
+    if (path.isEmpty()) {
+        path = defaultFileName.isEmpty() ? QStringLiteral("passwords.kdbx") : defaultFileName;
+    }
+    if (!folderId.trimmed().isEmpty()) {
+        return QStringLiteral("googledrive://%1/%2").arg(folderId.trimmed(), path);
+    }
+    return QStringLiteral("googledrive:/%1").arg(path.startsWith(QLatin1Char('/')) ? path : QLatin1Char('/') + path);
+}
+
 QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
 {
     if (webdav.enabled) {
@@ -155,6 +176,9 @@ QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
     }
     if (dropbox.enabled) {
         return dropbox.fullRemoteUrl(defaultFileName);
+    }
+    if (googleDrive.enabled) {
+        return googleDrive.fullRemoteUrl(defaultFileName);
     }
     if (sftp.enabled) {
         return sftp.fullRemoteUrl(defaultFileName);
@@ -173,6 +197,8 @@ QString RemoteSyncSettings::protocolToString(Protocol p)
     switch (p) {
     case Protocol::Dropbox:
         return QStringLiteral("dropbox");
+    case Protocol::GoogleDrive:
+        return QStringLiteral("googledrive");
     case Protocol::SFTP:
         return QStringLiteral("sftp");
     case Protocol::S3:
@@ -191,6 +217,9 @@ RemoteSyncSettings::Protocol RemoteSyncSettings::protocolFromString(const QStrin
 {
     if (str == QLatin1String("dropbox")) {
         return Protocol::Dropbox;
+    }
+    if (str == QLatin1String("googledrive")) {
+        return Protocol::GoogleDrive;
     }
     if (str == QLatin1String("sftp")) {
         return Protocol::SFTP;
@@ -256,6 +285,17 @@ RemoteSyncSettings RemoteSyncSettings::fromDatabase(const Database* db)
         s.dropbox.remotePath = cd->value(KEY_DROPBOX_REMOTEPATH);
         s.dropbox.appKey = cd->value(KEY_DROPBOX_APPKEY);
         s.dropbox.appSecret = cd->value(KEY_DROPBOX_APPSECRET);
+    }
+
+    // 3. Google Drive Settings
+    if (cd->contains(KEY_GDRIVE_ENABLED)) {
+        s.googleDrive.enabled = (cd->value(KEY_GDRIVE_ENABLED) == QLatin1String("true"));
+        s.googleDrive.accessToken = cd->value(KEY_GDRIVE_TOKEN);
+        s.googleDrive.refreshToken = cd->value(KEY_GDRIVE_REFRESH_TOKEN);
+        s.googleDrive.clientId = cd->value(KEY_GDRIVE_CLIENT_ID);
+        s.googleDrive.clientSecret = cd->value(KEY_GDRIVE_CLIENT_SECRET);
+        s.googleDrive.remotePath = cd->value(KEY_GDRIVE_REMOTEPATH);
+        s.googleDrive.folderId = cd->value(KEY_GDRIVE_FOLDERID);
     }
 
     // 3. SFTP Settings
@@ -369,6 +409,15 @@ void RemoteSyncSettings::saveToDatabase(Database* db) const
     cd->set(KEY_DROPBOX_REMOTEPATH, dropbox.remotePath);
     cd->set(KEY_DROPBOX_APPKEY, dropbox.appKey);
     cd->set(KEY_DROPBOX_APPSECRET, dropbox.appSecret);
+
+    // Google Drive
+    cd->set(KEY_GDRIVE_ENABLED, googleDrive.enabled ? QStringLiteral("true") : QStringLiteral("false"));
+    cd->set(KEY_GDRIVE_TOKEN, googleDrive.accessToken);
+    cd->set(KEY_GDRIVE_REFRESH_TOKEN, googleDrive.refreshToken);
+    cd->set(KEY_GDRIVE_CLIENT_ID, googleDrive.clientId);
+    cd->set(KEY_GDRIVE_CLIENT_SECRET, googleDrive.clientSecret);
+    cd->set(KEY_GDRIVE_REMOTEPATH, googleDrive.remotePath);
+    cd->set(KEY_GDRIVE_FOLDERID, googleDrive.folderId);
 
     // SFTP
     cd->set(KEY_SFTP_ENABLED, sftp.enabled ? QStringLiteral("true") : QStringLiteral("false"));

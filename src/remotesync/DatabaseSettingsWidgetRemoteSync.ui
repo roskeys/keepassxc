@@ -259,6 +259,155 @@
       </layout>
      </widget>
 
+     <!-- Tab: Google Drive -->
+     <widget class="QWidget" name="tabGoogleDrive">
+      <attribute name="title">
+       <string>Google Drive</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutGoogleDrive">
+       <item>
+        <widget class="QCheckBox" name="checkGoogleDriveEnabled">
+         <property name="text">
+          <string>Enable Google Drive Synchronization</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupGoogleDriveSettings">
+         <property name="title">
+          <string>Google Drive Configuration</string>
+         </property>
+         <layout class="QFormLayout" name="formLayoutGoogleDrive">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelGoogleDriveClientId">
+            <property name="text">
+             <string>Client ID:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="editGoogleDriveClientId">
+            <property name="placeholderText">
+             <string>e.g. 123456789-xxx.apps.googleusercontent.com</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelGoogleDriveClientSecret">
+            <property name="text">
+             <string>Client Secret:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="editGoogleDriveClientSecret">
+            <property name="placeholderText">
+             <string>GOCSPX-...</string>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelGoogleDriveRefreshToken">
+            <property name="text">
+             <string>Refresh Token (Permanent):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="editGoogleDriveRefreshToken">
+            <property name="placeholderText">
+             <string>1//0... (from OAuth Playground)</string>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="labelGoogleDriveToken">
+            <property name="text">
+             <string>Access Token (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLineEdit" name="editGoogleDriveToken">
+            <property name="placeholderText">
+             <string>Leave blank to auto-generate from Refresh Token</string>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="labelGoogleDriveRemotePath">
+            <property name="text">
+             <string>Remote File Name:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QLineEdit" name="editGoogleDriveRemotePath">
+            <property name="placeholderText">
+             <string>passwords.kdbx</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="labelGoogleDriveFolderId">
+            <property name="text">
+             <string>Folder ID (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QLineEdit" name="editGoogleDriveFolderId">
+            <property name="placeholderText">
+             <string>Leave blank for root, or paste folder ID from URL</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutTestGoogleDrive">
+         <item>
+          <widget class="QPushButton" name="buttonTestGoogleDrive">
+           <property name="text">
+            <string>Test Google Drive Connection</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="labelTestGoogleDriveResult">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacerGoogleDrive">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+
      <!-- Tab 3: SFTP (SSH) -->
      <widget class="QWidget" name="tabSftp">
       <attribute name="title">

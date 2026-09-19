@@ -84,7 +84,14 @@ void RemoteSyncManager::initProviders()
         m_providers.append({RemoteSyncSettings::Protocol::Dropbox, QStringLiteral("Dropbox"), p, QString()});
     }
 
-    // 3. SFTP Provider
+    // 3. Google Drive Provider
+    if (m_settings.googleDrive.enabled && (!m_settings.googleDrive.accessToken.isEmpty() || !m_settings.googleDrive.refreshToken.isEmpty())) {
+        auto* p = SyncProviderFactory::create(RemoteSyncSettings::Protocol::GoogleDrive, this);
+        p->configure(m_settings);
+        m_providers.append({RemoteSyncSettings::Protocol::GoogleDrive, QStringLiteral("Google Drive"), p, QString()});
+    }
+
+    // 4. SFTP Provider
     if (m_settings.sftp.enabled && !m_settings.sftp.host.isEmpty()) {
         auto* p = SyncProviderFactory::create(RemoteSyncSettings::Protocol::SFTP, this);
         p->configure(m_settings);

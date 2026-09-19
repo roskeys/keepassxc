@@ -28,6 +28,7 @@ private slots:
     void onBrowseGitKey();
     void onTestWebDavConnection();
     void onTestDropboxConnection();
+    void onTestGoogleDriveConnection();
     void onTestSftpConnection();
     void onTestS3Connection();
     void onTestGitConnection();

@@ -15,12 +15,14 @@ DatabaseSettingsWidgetRemoteSync::DatabaseSettingsWidgetRemoteSync(QWidget* pare
     // Toggle groupboxes based on enable checkboxes
     connect(m_ui->checkWebDavEnabled, &QCheckBox::toggled, m_ui->groupWebDavSettings, &QWidget::setEnabled);
     connect(m_ui->checkDropboxEnabled, &QCheckBox::toggled, m_ui->groupDropboxSettings, &QWidget::setEnabled);
+    connect(m_ui->checkGoogleDriveEnabled, &QCheckBox::toggled, m_ui->groupGoogleDriveSettings, &QWidget::setEnabled);
     connect(m_ui->checkSftpEnabled, &QCheckBox::toggled, m_ui->groupSftpSettings, &QWidget::setEnabled);
     connect(m_ui->checkS3Enabled, &QCheckBox::toggled, m_ui->groupS3Settings, &QWidget::setEnabled);
     connect(m_ui->checkGitEnabled, &QCheckBox::toggled, m_ui->groupGitSettings, &QWidget::setEnabled);
 
     m_ui->groupWebDavSettings->setEnabled(false);
     m_ui->groupDropboxSettings->setEnabled(false);
+    m_ui->groupGoogleDriveSettings->setEnabled(false);
     m_ui->groupSftpSettings->setEnabled(false);
     m_ui->groupS3Settings->setEnabled(false);
     m_ui->groupGitSettings->setEnabled(false);
@@ -32,6 +34,7 @@ DatabaseSettingsWidgetRemoteSync::DatabaseSettingsWidgetRemoteSync(QWidget* pare
     // Test buttons
     connect(m_ui->buttonTestWebDav, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestWebDavConnection);
     connect(m_ui->buttonTestDropbox, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestDropboxConnection);
+    connect(m_ui->buttonTestGoogleDrive, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestGoogleDriveConnection);
     connect(m_ui->buttonTestSftp, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestSftpConnection);
     connect(m_ui->buttonTestS3, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestS3Connection);
     connect(m_ui->buttonTestGit, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestGitConnection);
@@ -66,6 +69,17 @@ void DatabaseSettingsWidgetRemoteSync::loadSettings(QSharedPointer<Database> db)
     m_ui->editDropboxAppKey->setText(s.dropbox.appKey);
     m_ui->editDropboxAppSecret->setText(s.dropbox.appSecret);
     m_ui->labelTestDropboxResult->clear();
+
+    // 3. Google Drive
+    m_ui->checkGoogleDriveEnabled->setChecked(s.googleDrive.enabled);
+    m_ui->groupGoogleDriveSettings->setEnabled(s.googleDrive.enabled);
+    m_ui->editGoogleDriveClientId->setText(s.googleDrive.clientId);
+    m_ui->editGoogleDriveClientSecret->setText(s.googleDrive.clientSecret);
+    m_ui->editGoogleDriveRefreshToken->setText(s.googleDrive.refreshToken);
+    m_ui->editGoogleDriveToken->setText(s.googleDrive.accessToken);
+    m_ui->editGoogleDriveRemotePath->setText(s.googleDrive.remotePath);
+    m_ui->editGoogleDriveFolderId->setText(s.googleDrive.folderId);
+    m_ui->labelTestGoogleDriveResult->clear();
 
     // 3. SFTP
     m_ui->checkSftpEnabled->setChecked(s.sftp.enabled);
@@ -129,7 +143,16 @@ void DatabaseSettingsWidgetRemoteSync::saveSettings()
     s.dropbox.appKey = m_ui->editDropboxAppKey->text().trimmed();
     s.dropbox.appSecret = m_ui->editDropboxAppSecret->text().trimmed();
 
-    // 3. SFTP
+    // 3. Google Drive
+    s.googleDrive.enabled = m_ui->checkGoogleDriveEnabled->isChecked();
+    s.googleDrive.clientId = m_ui->editGoogleDriveClientId->text().trimmed();
+    s.googleDrive.clientSecret = m_ui->editGoogleDriveClientSecret->text().trimmed();
+    s.googleDrive.refreshToken = m_ui->editGoogleDriveRefreshToken->text().trimmed();
+    s.googleDrive.accessToken = m_ui->editGoogleDriveToken->text().trimmed();
+    s.googleDrive.remotePath = m_ui->editGoogleDriveRemotePath->text().trimmed();
+    s.googleDrive.folderId = m_ui->editGoogleDriveFolderId->text().trimmed();
+
+    // 4. SFTP
     s.sftp.enabled = m_ui->checkSftpEnabled->isChecked();
     s.sftp.host = m_ui->editSftpHost->text().trimmed();
     s.sftp.port = m_ui->spinSftpPort->value();
@@ -236,6 +259,33 @@ void DatabaseSettingsWidgetRemoteSync::onTestDropboxConnection()
             m_ui->labelTestDropboxResult->setText(tr("<font color='green'>Connection successful!</font>"));
         } else {
             m_ui->labelTestDropboxResult->setText(tr("<font color='red'>Failed: %1</font>").arg(result.errorMessage));
+        }
+        provider->deleteLater();
+    });
+}
+
+void DatabaseSettingsWidgetRemoteSync::onTestGoogleDriveConnection()
+{
+    RemoteSyncSettings s;
+    s.protocol = RemoteSyncSettings::Protocol::GoogleDrive;
+    s.googleDrive.enabled = true;
+    s.googleDrive.clientId = m_ui->editGoogleDriveClientId->text().trimmed();
+    s.googleDrive.clientSecret = m_ui->editGoogleDriveClientSecret->text().trimmed();
+    s.googleDrive.refreshToken = m_ui->editGoogleDriveRefreshToken->text().trimmed();
+    s.googleDrive.accessToken = m_ui->editGoogleDriveToken->text().trimmed();
+    s.googleDrive.remotePath = m_ui->editGoogleDriveRemotePath->text().trimmed();
+    s.googleDrive.folderId = m_ui->editGoogleDriveFolderId->text().trimmed();
+
+    m_ui->labelTestGoogleDriveResult->setText(tr("Testing Google Drive connection..."));
+    m_ui->buttonTestGoogleDrive->setEnabled(false);
+
+    auto* provider = SyncProviderFactory::create(RemoteSyncSettings::Protocol::GoogleDrive, this);
+    provider->testConnection(s, [this, provider](const SyncResult& result) {
+        m_ui->buttonTestGoogleDrive->setEnabled(true);
+        if (result.isSuccess()) {
+            m_ui->labelTestGoogleDriveResult->setText(tr("<font color='green'>Connection successful!</font>"));
+        } else {
+            m_ui->labelTestGoogleDriveResult->setText(tr("<font color='red'>Failed: %1</font>").arg(result.errorMessage));
         }
         provider->deleteLater();
     });

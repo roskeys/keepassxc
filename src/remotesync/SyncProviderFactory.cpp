@@ -1,6 +1,7 @@
 #include "SyncProviderFactory.h"
 #include "providers/DropboxSyncProvider.h"
 #include "providers/GitSyncProvider.h"
+#include "providers/GoogleDriveSyncProvider.h"
 #include "providers/S3SyncProvider.h"
 #include "providers/SftpSyncProvider.h"
 #include "providers/WebDavSyncProvider.h"
@@ -10,6 +11,8 @@ ISyncProvider* SyncProviderFactory::create(RemoteSyncSettings::Protocol protocol
     switch (protocol) {
     case RemoteSyncSettings::Protocol::Dropbox:
         return new DropboxSyncProvider(parent);
+    case RemoteSyncSettings::Protocol::GoogleDrive:
+        return new GoogleDriveSyncProvider(parent);
     case RemoteSyncSettings::Protocol::SFTP:
         return new SftpSyncProvider(parent);
     case RemoteSyncSettings::Protocol::S3:
