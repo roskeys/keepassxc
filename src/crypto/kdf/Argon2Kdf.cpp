@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include <QElapsedTimer>
 #include <QThread>
 
-#include <argon2.h>
+#include <botan/pwdhash.h>
 
 #include "format/KeePass2.h"
 
@@ -165,23 +165,20 @@ bool Argon2Kdf::transform(const QByteArray& raw, QByteArray& result) const
 {
     result.clear();
     result.resize(32);
-    // Time Cost, Mem Cost, Threads/Lanes, Password, length, Salt, length, out, length
 
-    int rc = argon2_hash(rounds(),
-                         memory(),
-                         parallelism(),
-                         raw.data(),
-                         raw.size(),
-                         seed().data(),
-                         seed().size(),
-                         result.data(),
-                         result.size(),
-                         nullptr,
-                         0,
-                         type() == Type::Argon2d ? Argon2_d : Argon2_id,
-                         version());
-    if (rc != ARGON2_OK) {
-        qWarning("Argon2 error: %s", argon2_error_message(rc));
+    const std::string algoName = (type() == Type::Argon2d) ? "Argon2d" : "Argon2id";
+    try {
+        // from_params for Argon2: i1 == M (memory in KiB), i2 == t (iterations), i3 == p (parallelism)
+        auto pwdHash =
+            Botan::PasswordHashFamily::create_or_throw(algoName)->from_params(memory(), rounds(), parallelism());
+        pwdHash->derive_key(reinterpret_cast<uint8_t*>(result.data()),
+                            result.size(),
+                            raw.constData(),
+                            raw.size(),
+                            reinterpret_cast<const uint8_t*>(seed().constData()),
+                            seed().size());
+    } catch (const std::exception& e) {
+        qWarning("Argon2 error: %s", e.what());
         return false;
     }
 

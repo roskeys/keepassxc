@@ -55,9 +55,7 @@ WelcomeWidget::WelcomeWidget(QWidget* parent)
             SLOT(openDatabaseFromFile(QListWidgetItem*)));
 }
 
-WelcomeWidget::~WelcomeWidget()
-{
-}
+WelcomeWidget::~WelcomeWidget() = default;
 
 void WelcomeWidget::openDatabaseFromFile(QListWidgetItem* item)
 {
@@ -86,7 +84,7 @@ void WelcomeWidget::refreshLastDatabases()
     m_ui->recentListWidget->clear();
     const QStringList lastDatabases = config()->get(Config::LastDatabases).toStringList();
     for (const QString& database : lastDatabases) {
-        QListWidgetItem* itm = new QListWidgetItem;
+        auto itm = new QListWidgetItem;
         itm->setText(database);
         m_ui->recentListWidget->addItem(itm);
     }

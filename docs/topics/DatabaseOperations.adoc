@@ -75,7 +75,7 @@ NOTE: On Windows, you will be prompted to authenticate to Windows Hello after un
 .Windows Hello example
 image::quick_unlock_windows_hello.png[]
 
-When your database is locked, you will see the following unlock dialog. Simply press kbd:[Enter] or click on _Unlock Database_ to initiate the biometric authentication process. If you are using a hardware key (e.g. Yubikey), it must be connected to your computer to complete the unlock.
+When your database is locked, you will see the following unlock dialog. Simply press kbd:[Enter] or click on _Unlock Database_ to initiate the biometric authentication process. If you are using a hardware key (e.g. YubiKey), it must be connected to your computer to complete the unlock.
 
 .Quick Unlock
 image::quick_unlock.png[]
@@ -416,5 +416,23 @@ The following key derivation functions are supported:
 KeePassXC offers some maintenance features that can be applied to clean up your database. Navigate to _Database_ -> _Database settings_ then click on _Maintenance_ on the left hand panel. The following screen appears. On this screen you can delete multiple icons at once and purge any unused icons in your database.
 
 image::database_maintenance.png[]
+
+== Remote database support
+KeePassXC provides support for syncing database files that reside in a remote location. If you can download/upload the database file via a commandline tool (e.g. rsync, ssh, scp etc.) KeePassXC offers easy to use functionality to sync the remote database.
+
+=== Sync with remote database
+Open the remote sync settings via _Database > Database Settings… > Remote_ to create commands to sync a local database or a temporary local copy of a remote database.
+
+Define a name for your sync command and specify a download *(A)* as well as an upload command *(B)*. The command and/or input need a `{TEMP_DATABASE}` placeholder specified where the remote database is temporarily stored. Do not forget to save the command settings with the save button *\(C)*. Remote settings are added as menu entries below the _Remote Sync…_ menu for quick access.
+
+WARNING: If your download or upload command require a password prompt, the command will most likely not succeed. In case of an SSH connection (e.g. sftp), it is recommended to use <<KeePassXC – SSH Agent integration,SSH agent>> so that no password prompt is needed.
+
+.Remote sync settings
+image::sync_remote_settings.png[]
+
+Select the remote sync command from the _Database > Remote Sync…_ menu to start the syncing process and a progress bar will show up in the lower right corner.
+
+WARNING: In case the remote database is changed by another user/process after the downloading command finishes and before uploading again, those changes will be overwritten. Syncing is not an atomic operation.
+
 // end::advanced[]
 // end::content[]

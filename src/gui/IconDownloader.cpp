@@ -17,8 +17,8 @@
 
 #include "IconDownloader.h"
 #include "core/Config.h"
-#include "core/NetworkManager.h"
-#include "core/UrlTools.h"
+#include "gui/UrlTools.h"
+#include "networking/NetworkManager.h"
 
 #include <QBuffer>
 #include <QHostInfo>
@@ -75,16 +75,16 @@ void IconDownloader::setUrl(const QString& entryUrl)
     // Determine if host portion of URL is an IP address by resolving it and
     // searching for a match with the returned address(es).
     bool hostIsIp = false;
-    QList<QHostAddress> hostAddressess = QHostInfo::fromName(fullyQualifiedDomain).addresses();
+    QList<QHostAddress> hostAddresses = QHostInfo::fromName(fullyQualifiedDomain).addresses();
     hostIsIp =
-        std::any_of(hostAddressess.begin(), hostAddressess.end(), [&fullyQualifiedDomain](const QHostAddress& addr) {
+        std::any_of(hostAddresses.begin(), hostAddresses.end(), [&fullyQualifiedDomain](const QHostAddress& addr) {
             return addr.toString() == fullyQualifiedDomain;
         });
 
     // Determine the second-level domain, if available
     QString secondLevelDomain;
     if (!hostIsIp) {
-        secondLevelDomain = urlTools()->getBaseDomainFromUrl(url.toString());
+        secondLevelDomain = UrlTools::getBaseDomainFromUrl(url.toString());
     }
 
     // Start with the "fallback" url (if enabled) to try to get the best favicon
@@ -172,7 +172,7 @@ void IconDownloader::fetchFinished()
     QString url = m_url;
 
     bool error = (m_reply->error() != QNetworkReply::NoError);
-    QUrl redirectTarget = urlTools()->getRedirectTarget(m_reply);
+    QUrl redirectTarget = UrlTools::getRedirectTarget(m_reply);
 
     m_reply->deleteLater();
     m_reply = nullptr;
@@ -186,7 +186,8 @@ void IconDownloader::fetchFinished()
                 if (redirectTarget.isRelative()) {
                     redirectTarget = m_fetchUrl.resolved(redirectTarget);
                 }
-                m_urlsToTry.prepend(redirectTarget);
+                fetchFavicon(redirectTarget);
+                return;
             }
         } else {
             // No redirect, and we theoretically have some icon data now.

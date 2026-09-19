@@ -21,6 +21,12 @@
 #include <QPointer>
 #include <QWizardPage>
 
+#include <QLabel>
+#include <QProgressBar>
+#include <QStatusBar>
+
+#include "../remote/RemoteHandler.h"
+
 class CsvImportWidget;
 class Database;
 namespace Ui
@@ -50,6 +56,10 @@ private:
     QSharedPointer<Database> importOPVault(const QString& filename, const QString& password);
     QSharedPointer<Database> importKeePass1(const QString& filename, const QString& password, const QString& keyfile);
     QSharedPointer<Database> importProtonPass(const QString& filename);
+    QSharedPointer<Database> importRemote(const QString& downloadCommand,
+                                          const QString& downloadInput,
+                                          const QString& password,
+                                          const QString& keyfile);
 
     void setupDatabasePreview();
 
@@ -57,6 +67,7 @@ private:
 
     QSharedPointer<Database> m_db;
     QPointer<CsvImportWidget> m_csvWidget;
+    QPointer<RemoteHandler> m_remoteHandler;
 };
 
 #endif

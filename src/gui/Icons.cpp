@@ -24,16 +24,15 @@
 #include <QPaintDevice>
 #include <QPainter>
 
+#include <algorithm>
+
 #include "config-keepassx.h"
 #include "core/Config.h"
 #include "core/Database.h"
 #include "gui/DatabaseIcons.h"
 #include "gui/MainWindow.h"
 #include "gui/osutils/OSUtils.h"
-
-#ifdef WITH_XC_KEESHARE
 #include "keeshare/KeeShare.h"
-#endif
 
 class AdaptiveIconEngine : public QIconEngine
 {
@@ -50,16 +49,14 @@ private:
 
 Icons* Icons::m_instance(nullptr);
 
-Icons::Icons()
-{
-}
+Icons::Icons() = default;
 
 QString Icons::applicationIconName()
 {
 #ifdef KEEPASSXC_DIST_FLATPAK
-    return QString("org.keepassxc.KeePassXC");
+    return "org.keepassxc.KeePassXC";
 #else
-    return QString("keepassxc");
+    return "keepassxc";
 #endif
 }
 
@@ -88,8 +85,8 @@ QIcon Icons::trayIcon(bool unlocked)
         suffix = "-locked";
     }
 
-    auto iconApperance = trayIconAppearance();
-    if (!iconApperance.startsWith("monochrome")) {
+    auto iconAppearance = trayIconAppearance();
+    if (!iconAppearance.startsWith("monochrome")) {
         return icon(QString("%1%2").arg(applicationIconName(), suffix), false);
     }
 
@@ -103,7 +100,7 @@ QIcon Icons::trayIcon(bool unlocked)
 #elif defined(Q_OS_MACOS)
     i = icon(QString("keepassxc-monochrome-light%1").arg(suffix), false);
 #else
-    i = icon(QString("%1-%2%3").arg(applicationIconName(), iconApperance, suffix), false);
+    i = icon(QString("%1-%2%3").arg(applicationIconName(), iconAppearance, suffix), false);
 #endif
     // Set as mask to allow the operating system to recolour the tray icon. This may look weird
     // if we failed to detect the status bar background colour correctly, but it is certainly
@@ -267,12 +264,9 @@ QPixmap Icons::groupIconPixmap(const Group* group, IconSize size)
 
     if (group->isExpired()) {
         icon = databaseIcons()->applyBadge(icon, DatabaseIcons::Badges::Expired);
-    }
-#ifdef WITH_XC_KEESHARE
-    else if (KeeShare::isShared(group)) {
+    } else if (KeeShare::isShared(group)) {
         icon = KeeShare::indicatorBadge(group, icon);
     }
-#endif
 
     return icon;
 }
@@ -283,14 +277,9 @@ QString Icons::imageFormatsFilter()
     QStringList formatsStringList;
 
     for (const QByteArray& format : formats) {
-        bool codePointClean = true;
-        for (char codePoint : format) {
-            if (!QChar(codePoint).isLetterOrNumber()) {
-                codePointClean = false;
-                break;
-            }
-        }
-        if (codePointClean) {
+        if (std::all_of(format.cbegin(), format.cend(), [](char codePoint) -> bool {
+                return QChar(codePoint).isLetterOrNumber();
+            })) {
             formatsStringList.append("*." + QString::fromLatin1(format).toLower());
         }
     }

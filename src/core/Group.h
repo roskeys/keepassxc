@@ -40,7 +40,7 @@ public:
     {
         Default, // Determine merge strategy from parent or fallback (Synchronize)
         KeepNewer, // merge history
-        Synchronize, // merge history keeping most recent as top entry and appling deletions
+        Synchronize, // merge history keeping most recent as top entry and applying deletions
     };
 
     enum CloneFlag
@@ -75,7 +75,7 @@ public:
     };
 
     Group();
-    ~Group();
+    ~Group() override;
 
     const QUuid& uuid() const;
     const QString uuidToHex() const;
@@ -99,6 +99,7 @@ public:
     bool isExpired() const;
     bool isRecycled() const;
     bool isEmpty() const;
+    bool isShared() const;
     CustomData* customData();
     const CustomData* customData() const;
     Group::TriState resolveCustomDataTriState(const QString& key, bool checkParent = true) const;
@@ -155,7 +156,6 @@ public:
     const QList<Group*>& children() const;
     QList<Entry*> entries();
     const QList<Entry*>& entries() const;
-    Entry* findEntryRecursive(const QString& text, EntryReferenceType referenceType, Group* group = nullptr);
     QList<Entry*> referencesRecursive(const Entry* entry) const;
     QList<Entry*> entriesRecursive(bool includeHistoryItems = false) const;
     QList<const Group*> groupsRecursive(bool includeSelf) const;

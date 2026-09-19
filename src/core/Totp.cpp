@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017 Weslly Honorato <﻿weslly@protonmail.com>
+ *  Copyright (C) 2017 Weslly Honorato <weslly@protonmail.com>
  *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -50,11 +50,11 @@ static QString getNameForHashType(const Totp::Algorithm hashType)
 {
     switch (hashType) {
     case Totp::Algorithm::Sha512:
-        return QString("SHA512");
+        return "SHA512";
     case Totp::Algorithm::Sha256:
-        return QString("SHA256");
+        return "SHA256";
     default:
-        return QString("SHA1");
+        return "SHA1";
     }
 }
 

@@ -167,7 +167,7 @@ namespace Bootstrap
             goto Cleanup;
         }
 
-        // Retrieve CreaterOwnerRights SID
+        // Retrieve CreatorOwnerRights SID
         pOwnerRightsSid = static_cast<PSID>(HeapAlloc(GetProcessHeap(), 0, pOwnerRightsSidSize));
         if (pOwnerRightsSid == nullptr) {
             goto Cleanup;
@@ -209,7 +209,7 @@ namespace Bootstrap
             goto Cleanup;
         }
 
-#ifdef WITH_XC_SSHAGENT
+#ifdef KPXC_FEATURE_SSHAGENT
         // OpenSSH for Windows ssh-agent service is running as LocalSystem
         if (!AddAccessAllowedAce(pACL,
                                  ACL_REVISION,

@@ -23,6 +23,9 @@
 #include <QSharedPointer>
 #include <QtDBus/QDBusVariant>
 
+class GlobalShortcutsPortal;
+class RemoteDesktopPortal;
+
 class NixUtils : public OSUtilsBase, QAbstractNativeEventFilter
 {
     Q_OBJECT
@@ -49,9 +52,22 @@ public:
     {
         return false;
     }
+    bool setClipboardText(const QString& text) override;
+    bool clearClipboardText(const QString& text) override;
+    bool isClipboardAvailable() override;
+
+    quint64 getProcessStartTime() const;
+
+    bool externalGlobalShortcutsConfigurator() override;
+    bool isWayland() const;
+
+    GlobalShortcutsPortal* globalShortcutsPortal();
+    RemoteDesktopPortal* remoteDesktopPortal();
+
+public slots:
+    void configureGlobalShortcut(const QString& name) override;
 
 private slots:
-    void handleColorSchemeRead(QDBusVariant value);
     void handleColorSchemeChanged(QString ns, QString key, QDBusVariant value);
     void launchAtStartupRequested(uint response, const QVariantMap& results);
 
@@ -59,7 +75,7 @@ private:
     explicit NixUtils(QObject* parent = nullptr);
     ~NixUtils() override;
 
-    bool nativeEventFilter(const QByteArray& eventType, void* message, long*) override;
+    bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
     QString getAutostartDesktopFilename(bool createDirs = false) const;
 
     bool triggerGlobalShortcut(uint keycode, uint modifiers);
@@ -82,9 +98,12 @@ private:
         PreferLight
     };
     ColorschemePref m_systemColorschemePref = ColorschemePref::PreferNone;
-    bool m_systemColorschemePrefExists;
+    bool m_systemColorschemePrefExists = false;
 
     void setColorScheme(QDBusVariant value);
+
+    GlobalShortcutsPortal* m_globalShortcutsPortal = nullptr;
+    RemoteDesktopPortal* m_remoteDesktopPortal = nullptr;
 
     Q_DISABLE_COPY(NixUtils)
 };

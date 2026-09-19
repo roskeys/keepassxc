@@ -46,9 +46,7 @@ DatabaseSettingsWidgetGeneral::DatabaseSettingsWidgetGeneral(QWidget* parent)
     connect(m_ui->autosaveDelayCheckBox, SIGNAL(toggled(bool)), m_ui->autosaveDelaySpinBox, SLOT(setEnabled(bool)));
 }
 
-DatabaseSettingsWidgetGeneral::~DatabaseSettingsWidgetGeneral()
-{
-}
+DatabaseSettingsWidgetGeneral::~DatabaseSettingsWidgetGeneral() = default;
 
 void DatabaseSettingsWidgetGeneral::initialize()
 {

@@ -18,42 +18,35 @@
 
 #include "TestAutoType.h"
 
-#include <QPluginLoader>
 #include <QRegularExpression>
 #include <QTest>
 
 #include "autotype/AutoType.h"
-#include "autotype/AutoTypePlatformPlugin.h"
-#include "autotype/test/AutoTypeTestInterface.h"
+#include "autotype/test/AutoTypeTest.h"
 #include "core/Config.h"
 #include "core/Group.h"
-#include "core/Resources.h"
 #include "core/Totp.h"
 #include "crypto/Crypto.h"
 #include "gui/MessageBox.h"
 #include "gui/osutils/OSUtils.h"
+#include "util/TemporaryFile.h"
 
 QTEST_GUILESS_MAIN(TestAutoType)
 
 void TestAutoType::initTestCase()
 {
     QVERIFY(Crypto::init());
-    Config::createTempFileInstance();
+    QLocale::setDefault(QLocale::c());
+
+    // Create temporary config file
+    Config::createConfigFromFile(TemporaryFile::createTempConfigFile(), {});
     config()->set(Config::AutoTypeDelay, 1);
     config()->set(Config::Security_AutoTypeAsk, false);
     AutoType::createTestInstance();
 
-    QPluginLoader loader(resources()->pluginPath("keepassxc-autotype-test"));
-    loader.setLoadHints(QLibrary::ResolveAllSymbolsHint);
-    QVERIFY(loader.instance());
-
-    m_platform = qobject_cast<AutoTypePlatformInterface*>(loader.instance());
-    QVERIFY(m_platform);
-
-    m_test = qobject_cast<AutoTypeTestInterface*>(loader.instance());
-    QVERIFY(m_test);
-
     m_autoType = AutoType::instance();
+    m_test = dynamic_cast<AutoTypePlatformTest*>(m_autoType->platform());
+    QVERIFY(m_test);
 }
 
 void TestAutoType::init()
@@ -150,10 +143,10 @@ void TestAutoType::cleanup()
 
 void TestAutoType::testInternal()
 {
-    QVERIFY(m_platform->activeWindowTitle().isEmpty());
+    QVERIFY(m_test->activeWindowTitle().isEmpty());
 
     m_test->setActiveWindowTitle("Test");
-    QCOMPARE(m_platform->activeWindowTitle(), QString("Test"));
+    QCOMPARE(m_test->activeWindowTitle(), QString("Test"));
 }
 
 void TestAutoType::testSingleAutoType()
@@ -345,6 +338,8 @@ void TestAutoType::testAutoTypeSyntaxChecks()
              error.toLatin1());
 
     QVERIFY2(AutoType::verifyAutoTypeSyntax("{NUMPAD1 3}", entry, error), error.toLatin1());
+
+    QVERIFY2(AutoType::verifyAutoTypeSyntax("{PGDN}", entry, error), error.toLatin1());
 
     QVERIFY2(AutoType::verifyAutoTypeSyntax("{S:SPECIALTOKEN}", entry, error), error.toLatin1());
     QVERIFY2(AutoType::verifyAutoTypeSyntax("{S:SPECIAL TOKEN}", entry, error), error.toLatin1());

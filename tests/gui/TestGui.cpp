@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2020 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,12 +21,17 @@
 
 #include <QCheckBox>
 #include <QClipboard>
+#include <QDialog>
+#include <QListWidget>
+#include <QMenu>
+#include <QMenuBar>
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSignalSpy>
 #include <QSpinBox>
+#include <QTableWidget>
 #include <QTest>
 #include <QToolBar>
 
@@ -34,6 +39,7 @@
 #include "core/PasswordHealth.h"
 #include "core/Tools.h"
 #include "crypto/Crypto.h"
+#include "gui/ActionCollection.h"
 #include "gui/ApplicationSettingsWidget.h"
 #include "gui/CategoryListWidget.h"
 #include "gui/CloneDialog.h"
@@ -44,6 +50,7 @@
 #include "gui/PasswordGeneratorWidget.h"
 #include "gui/PasswordWidget.h"
 #include "gui/SearchWidget.h"
+#include "gui/ShortcutSettingsPage.h"
 #include "gui/TotpDialog.h"
 #include "gui/TotpSetupDialog.h"
 #include "gui/databasekey/KeyFileEditWidget.h"
@@ -55,9 +62,11 @@
 #include "gui/group/EditGroupWidget.h"
 #include "gui/group/GroupModel.h"
 #include "gui/group/GroupView.h"
+#include "gui/remote/RemoteHandler.h"
 #include "gui/tag/TagsEdit.h"
 #include "gui/wizard/NewDatabaseWizard.h"
 #include "keys/FileKey.h"
+#include "mock/MockRemoteProcess.h"
 
 #define TEST_MODAL_NO_WAIT(TEST_CODE)                                                                                  \
     bool dialogFinished = false;                                                                                       \
@@ -86,7 +95,10 @@ int main(int argc, char* argv[])
 void TestGui::initTestCase()
 {
     QVERIFY(Crypto::init());
-    Config::createTempFileInstance();
+
+    // Create temporary config file
+    Config::createConfigFromFile(TemporaryFile::createTempConfigFile(), {});
+
     QLocale::setDefault(QLocale::c());
     Application::bootstrap();
 
@@ -342,7 +354,7 @@ void TestGui::testMergeDatabase()
     QSignalSpy dbMergeSpy(m_dbWidget.data(), SIGNAL(databaseMerged(QSharedPointer<Database>)));
     QApplication::processEvents();
 
-    // set file to merge from
+    // Set file to merge from
     fileDialog()->setNextFileName(QString(KEEPASSX_TEST_DATA_DIR).append("/MergeDatabase.kdbx"));
     triggerAction("actionDatabaseMerge");
 
@@ -353,9 +365,21 @@ void TestGui::testMergeDatabase()
     QTest::keyClicks(editPasswordMerge, "a");
     QTest::keyClick(editPasswordMerge, Qt::Key_Enter);
 
-    // confirm merge in confirmation dialog
-    QTRY_VERIFY(QApplication::focusWindow()->title().contains("Merge"));
-    QTest::keyClick(QApplication::focusWidget(), Qt::Key_Enter);
+    // Confirm merge in confirmation dialog
+    auto focusedWindow = QApplication::topLevelWindows().last();
+    QVERIFY(focusedWindow);
+    QTRY_VERIFY(focusedWindow->title().contains("Merge"));
+
+    auto topLevelWidgets = QApplication::topLevelWidgets();
+    QWidget* mergeDialog = nullptr;
+    for (auto* widget : topLevelWidgets) {
+        if (widget && widget->objectName() == "MergeDialog") {
+            mergeDialog = widget;
+        }
+    }
+
+    QVERIFY(mergeDialog);
+    QTest::keyClick(mergeDialog, Qt::Key_Enter);
 
     QTRY_COMPARE(dbMergeSpy.count(), 1);
     QTRY_VERIFY(m_tabWidget->tabText(m_tabWidget->currentIndex()).contains("*"));
@@ -370,6 +394,157 @@ void TestGui::testMergeDatabase()
     QCOMPARE(m_db->rootGroup()->findChildByName("General")->entries().size(), 1);
 }
 
+void TestGui::prepareAndTriggerRemoteSync()
+{
+    // create remote settings in settings dialog
+    triggerAction("actionDatabaseSettings");
+
+    auto dbSettingsDialog = m_dbWidget->findChild<DatabaseSettingsDialog*>("databaseSettingsDialog");
+    QVERIFY(dbSettingsDialog);
+    dbSettingsDialog->showRemoteSettings();
+
+    auto name = "testCommand";
+    auto nameEdit = dbSettingsDialog->findChild<QLineEdit*>("nameLineEdit");
+    QVERIFY(nameEdit);
+    QVERIFY(nameEdit->isVisible());
+    nameEdit->setText(name);
+
+    auto downloadCommandEdit = dbSettingsDialog->findChild<QLineEdit*>("downloadCommand");
+    QVERIFY(downloadCommandEdit);
+    downloadCommandEdit->setText("sftp user@server:Database.kdbx");
+
+    auto saveSettingsButton = dbSettingsDialog->findChild<QPushButton*>("saveSettingsButton");
+    QVERIFY(saveSettingsButton);
+    QTest::mouseClick(saveSettingsButton, Qt::LeftButton);
+
+    auto okButton = dbSettingsDialog->findChild<QDialogButtonBox*>("buttonBox")->button(QDialogButtonBox::Ok);
+    QVERIFY(okButton);
+    QTest::mouseClick(okButton, Qt::LeftButton);
+
+    QTRY_COMPARE(m_dbWidget->getRemoteParams().size(), 1);
+
+    // Show menu to trigger populating with remote sync action
+    auto menuRemoteSync = m_mainWindow->findChild<QMenu*>("menuRemoteSync");
+    QVERIFY(menuRemoteSync);
+    menuRemoteSync->popup({0, 0});
+    QApplication::processEvents();
+    menuRemoteSync->close();
+
+    // Trigger the remote sync action
+    for (const auto remoteAction : menuRemoteSync->actions()) {
+        if (remoteAction->text() == name) {
+            remoteAction->trigger();
+            return;
+        }
+    }
+
+    // If we get here then something didn't work properly
+    QFAIL("Remote sync action not present in menu.");
+}
+
+void TestGui::testRemoteSyncDatabaseSameKey()
+{
+    RemoteHandler::setRemoteProcessFunc([](QObject* parent) {
+        return QScopedPointer<RemoteProcess>(
+            new MockRemoteProcess(parent, QString(KEEPASSX_TEST_DATA_DIR).append("/SyncDatabase.kdbx")));
+    });
+    QSignalSpy dbSyncSpy(m_dbWidget.data(), &DatabaseWidget::databaseSyncCompleted);
+    prepareAndTriggerRemoteSync();
+    QTRY_COMPARE(dbSyncSpy.count(), 1);
+
+    m_db = m_tabWidget->currentDatabaseWidget()->database();
+
+    // there are seven child groups of the root group
+    QCOMPARE(m_db->rootGroup()->children().size(), 7);
+    // the merged group should contain an entry
+    QCOMPARE(m_db->rootGroup()->children().at(6)->entries().size(), 1);
+    // the General group contains one entry merged from the other db
+    QCOMPARE(m_db->rootGroup()->findChildByName("General")->entries().size(), 1);
+}
+
+void TestGui::testRemoteSyncDatabaseRequiresPassword()
+{
+    RemoteHandler::setRemoteProcessFunc([](QObject* parent) {
+        return QScopedPointer<RemoteProcess>(new MockRemoteProcess(
+            parent, QString(KEEPASSX_TEST_DATA_DIR).append("/SyncDatabaseDifferentPassword.kdbx")));
+    });
+    QSignalSpy dbSyncSpy(m_dbWidget.data(), &DatabaseWidget::databaseSyncCompleted);
+    prepareAndTriggerRemoteSync();
+
+    // need to process more events as opening with the same key did not work and more events have been fired
+    QApplication::processEvents(QEventLoop::WaitForMoreEvents);
+
+    QWidget* editPasswordSync;
+    QTRY_VERIFY((editPasswordSync = QApplication::focusWidget()) && editPasswordSync->objectName() == "passwordEdit");
+    QVERIFY(editPasswordSync->isVisible());
+
+    QTest::keyClicks(editPasswordSync, "b");
+    QTest::keyClick(editPasswordSync, Qt::Key_Enter);
+
+    QTRY_COMPARE(dbSyncSpy.count(), 1);
+    m_db = m_tabWidget->currentDatabaseWidget()->database();
+
+    // there are seven child groups of the root group
+    QCOMPARE(m_db->rootGroup()->children().size(), 7);
+    // the merged group should contain an entry
+    QCOMPARE(m_db->rootGroup()->children().at(6)->entries().size(), 1);
+    // the General group contains one entry merged from the other db
+    QCOMPARE(m_db->rootGroup()->findChildByName("General")->entries().size(), 1);
+}
+
+void TestGui::testOpenRemoteDatabase()
+{
+    // close current database
+    cleanup();
+
+    QString sourceToSync = "sftp user@server:Database.kdbx";
+    RemoteHandler::setRemoteProcessFunc([sourceToSync](QObject* parent) {
+        return QScopedPointer<RemoteProcess>(
+            new MockRemoteProcess(parent, QString(KEEPASSX_TEST_DATA_DIR).append("/SyncDatabase.kdbx")));
+    });
+    auto* openRemoteButton = QApplication::activeWindow()->findChild<QPushButton*>("buttonImport");
+    QVERIFY(openRemoteButton);
+    QVERIFY(openRemoteButton->isVisible());
+    QTest::mouseClick(openRemoteButton, Qt::LeftButton);
+    QApplication::processEvents();
+
+    TEST_MODAL_NO_WAIT(ImportWizard * wizard; QTRY_VERIFY(wizard = m_tabWidget->findChild<ImportWizard*>());
+
+                       auto* importTypeList = wizard->currentPage()->findChild<QListWidget*>("importTypeList");
+                       QVERIFY(importTypeList);
+
+                       for (int i = 0; i < importTypeList->count(); ++i) {
+                           auto item = importTypeList->item(i);
+                           if (item->data(Qt::UserRole) == ImportWizard::IMPORT_REMOTE) {
+                               importTypeList->setCurrentItem(item);
+                               break;
+                           }
+                       }
+
+                       auto* downloadCommandEdit = wizard->currentPage()->findChild<QLineEdit*>("downloadCommand");
+                       QVERIFY(downloadCommandEdit);
+                       QTest::keyClicks(downloadCommandEdit, sourceToSync);
+
+                       auto* temporaryDatabaseRadio =
+                           wizard->currentPage()->findChild<QRadioButton*>("temporaryDatabaseRadio");
+                       QVERIFY(temporaryDatabaseRadio);
+                       QTest::mouseClick(temporaryDatabaseRadio, Qt::LeftButton);
+
+                       auto* passwordEdit = wizard->currentPage()->findChild<QLineEdit*>("passwordEdit");
+                       QVERIFY(passwordEdit);
+                       QTest::keyClicks(passwordEdit, "a");
+                       QTest::keyClick(passwordEdit, Qt::Key_Enter);
+
+                       QApplication::processEvents();
+
+                       QVERIFY(wizard->currentPage()->findChildren<QTableWidget*>().count() > 0);
+
+                       QTest::keyClick(passwordEdit, Qt::Key_Enter););
+
+    // remote database has been opened
+    QTRY_COMPARE(m_tabWidget->tabText(m_tabWidget->currentIndex()), QString("SyncDatabase [Temporary]"));
+}
+
 void TestGui::testAutoreloadDatabase()
 {
     config()->set(Config::AutoReloadOnChange, false);
@@ -378,12 +553,15 @@ void TestGui::testAutoreloadDatabase()
     MessageBox::setNextAnswer(MessageBox::Yes);
     // Overwrite the current database with the temp data
     QVERIFY(m_dbFile.copyFromFile(QString(KEEPASSX_TEST_DATA_DIR).append("/MergeDatabase.kdbx")));
+    QApplication::processEvents();
 
     QTRY_VERIFY(m_db != m_dbWidget->database());
     m_db = m_dbWidget->database();
 
     // the General group contains one entry from the new db data
-    QCOMPARE(m_db->rootGroup()->findChildByName("General")->entries().size(), 1);
+    auto generalGroup = m_db->rootGroup()->findChildByName("General");
+    QVERIFY(generalGroup);
+    QCOMPARE(generalGroup->entries().size(), 1);
     QVERIFY(!m_tabWidget->tabText(m_tabWidget->currentIndex()).endsWith("*"));
 
     // Reset the state
@@ -396,9 +574,12 @@ void TestGui::testAutoreloadDatabase()
     MessageBox::setNextAnswer(MessageBox::No);
     // Overwrite the current database with the temp data
     QVERIFY(m_dbFile.copyFromFile(QString(KEEPASSX_TEST_DATA_DIR).append("/MergeDatabase.kdbx")));
+    QApplication::processEvents();
 
     // Ensure the merge did not take place
-    QCOMPARE(m_db->rootGroup()->findChildByName("General")->entries().size(), 0);
+    generalGroup = m_db->rootGroup()->findChildByName("General");
+    QVERIFY(generalGroup);
+    QCOMPARE(generalGroup->entries().size(), 0);
     QTRY_VERIFY(m_tabWidget->tabText(m_tabWidget->currentIndex()).endsWith("*"));
 
     // Reset the state
@@ -415,11 +596,14 @@ void TestGui::testAutoreloadDatabase()
     MessageBox::setNextAnswer(MessageBox::Merge);
     // Overwrite the current database with the temp data
     QVERIFY(m_dbFile.copyFromFile(QString(KEEPASSX_TEST_DATA_DIR).append("/MergeDatabase.kdbx")));
+    QApplication::processEvents();
 
     QTRY_VERIFY(m_db != m_dbWidget->database());
     m_db = m_dbWidget->database();
 
-    QCOMPARE(m_db->rootGroup()->findChildByName("General")->entries().size(), 1);
+    generalGroup = m_db->rootGroup()->findChildByName("General");
+    QVERIFY(generalGroup);
+    QCOMPARE(generalGroup->entries().size(), 1);
     QTRY_VERIFY(m_tabWidget->tabText(m_tabWidget->currentIndex()).endsWith("*"));
 }
 
@@ -519,8 +703,8 @@ void TestGui::testEditEntry()
 
     // Test entry colors (simulate choosing a color)
     editEntryWidget->switchToPage(EditEntryWidget::Page::Advanced);
-    auto fgColor = QString("#FF0000");
-    auto bgColor = QString("#0000FF");
+    auto fgColor = QColor(255, 0, 0);
+    auto bgColor = QColor(0, 0, 255);
     // Set foreground color
     auto colorButton = editEntryWidget->findChild<QPushButton*>("fgColorButton");
     auto colorCheckBox = editEntryWidget->findChild<QCheckBox*>("fgColorCheckBox");
@@ -554,9 +738,9 @@ void TestGui::testEditEntry()
     // Confirm edit was made
     QCOMPARE(m_dbWidget->currentMode(), DatabaseWidget::Mode::ViewMode);
     QCOMPARE(entry->title(), QString("Sample Entry_test"));
-    QCOMPARE(entry->foregroundColor().toUpper(), fgColor.toUpper());
+    QCOMPARE(entry->foregroundColor().toUpper(), fgColor.name().toUpper());
     QCOMPARE(entryItem.data(Qt::ForegroundRole), QVariant(fgColor));
-    QCOMPARE(entry->backgroundColor().toUpper(), bgColor.toUpper());
+    QCOMPARE(entry->backgroundColor().toUpper(), bgColor.name().toUpper());
     QCOMPARE(entryItem.data(Qt::BackgroundRole), QVariant(bgColor));
     QCOMPARE(entry->historyItems().size(), ++editCount);
 
@@ -926,6 +1110,17 @@ void TestGui::testTotp()
 
     auto* editEntryWidget = m_dbWidget->findChild<EditEntryWidget*>("editEntryWidget");
     editEntryWidget->switchToPage(EditEntryWidget::Page::Advanced);
+    QApplication::processEvents();
+    // Find the "TOTP Seed" attribute in the list view
+    auto* attrListView = editEntryWidget->findChild<QListView*>("attributesView");
+    auto index = attrListView->model()->index(0, 0);
+    for (auto i = 0; i < attrListView->model()->rowCount(); ++i) {
+        index = attrListView->model()->index(i, 0);
+        if (attrListView->model()->data(index).toString().compare("TOTP Seed") == 0) {
+            break;
+        }
+    }
+    attrListView->setCurrentIndex(index);
     auto* attrTextEdit = editEntryWidget->findChild<QPlainTextEdit*>("attributesEdit");
     QTest::mouseClick(editEntryWidget->findChild<QAbstractButton*>("revealAttributeButton"), Qt::LeftButton);
     QCOMPARE(attrTextEdit->toPlainText(), expectedFinalSeed);
@@ -1962,6 +2157,52 @@ void TestGui::testTrayRestoreHide()
 #endif
 }
 
+void TestGui::testShortcutConfig()
+{
+    // Action collection should not be empty
+    QVERIFY(!ActionCollection::instance()->actions().isEmpty());
+
+    // Add an action, make sure it gets added
+    QAction* a = new QAction(ActionCollection::instance());
+    a->setObjectName("MyAction1");
+    ActionCollection::instance()->addAction(a);
+    QVERIFY(ActionCollection::instance()->actions().contains(a));
+
+    const QKeySequence seq(Qt::CTRL | Qt::SHIFT | Qt::ALT | Qt::Key_N);
+    ActionCollection::instance()->setDefaultShortcut(a, seq);
+    QCOMPARE(ActionCollection::instance()->defaultShortcut(a), seq);
+
+    bool v = false;
+    m_mainWindow->addAction(a);
+    connect(a, &QAction::triggered, ActionCollection::instance(), [&v] { v = !v; });
+    QTest::keyClick(m_mainWindow.data(), Qt::Key_N, Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier);
+    QVERIFY(v);
+
+    // Change shortcut and save
+    const QKeySequence newSeq(Qt::CTRL | Qt::SHIFT | Qt::ALT | Qt::Key_M);
+    a->setShortcut(newSeq);
+    QVERIFY(a->shortcut() != ActionCollection::instance()->defaultShortcut(a));
+    ActionCollection::instance()->saveShortcuts();
+    QCOMPARE(a->shortcut(), newSeq);
+    const auto shortcuts = Config::instance()->getShortcuts();
+    Config::ShortcutEntry entryForA;
+    for (const auto& s : shortcuts) {
+        if (s.name == a->objectName()) {
+            entryForA = s;
+            break;
+        }
+    }
+    QCOMPARE(entryForA.name, a->objectName());
+    QCOMPARE(QKeySequence::fromString(entryForA.shortcut), a->shortcut());
+
+    // trigger the old shortcut
+    QTest::keyClick(m_mainWindow.data(), Qt::Key_N, Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier);
+    QVERIFY(v); // value of v should not change
+    QTest::keyClick(m_mainWindow.data(), Qt::Key_M, Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier);
+    QVERIFY(!v);
+    disconnect(a, nullptr, nullptr, nullptr);
+}
+
 void TestGui::testAutoType()
 {
     // Clear entries from root group to guarantee order
@@ -2262,6 +2503,68 @@ void TestGui::testMenuActionStates()
     QVERIFY(isActionEnabled("actionImport"));
     QVERIFY(isActionEnabled("actionSettings"));
     QVERIFY(isActionEnabled("actionPasswordGenerator"));
+}
+
+void TestGui::testDeleteEntryDuringModalDialog()
+{
+    // Delete key in native file dialogs on macOS
+    // should not delete password entries
+
+    // Add canned entries for consistent testing
+    addCannedEntries();
+
+    auto* entryView = m_dbWidget->findChild<EntryView*>("entryView");
+    auto* entryDeleteAction = m_mainWindow->findChild<QAction*>("actionEntryDelete");
+
+    // Count initial entries
+    int initialEntryCount = entryView->model()->rowCount();
+    QVERIFY(initialEntryCount > 0);
+
+    // Select the first entry
+    clickIndex(entryView->model()->index(0, 1), entryView, Qt::LeftButton);
+    entryView->setFocus();
+    QApplication::processEvents();
+
+    // Create and show a modal dialog to simulate the file save dialog
+    QDialog modalDialog(m_mainWindow.data());
+    modalDialog.setModal(true);
+
+    // Use a timer to trigger the delete action while modal dialog is shown
+    bool deleteTriggered = false;
+    QTimer::singleShot(50, [&]() {
+        // Verify modal dialog is active
+        QVERIFY(QApplication::activeModalWidget() == &modalDialog);
+
+        // Trigger delete action while modal is open
+        entryDeleteAction->trigger();
+        deleteTriggered = true;
+
+        // Close the modal dialog
+        modalDialog.accept();
+    });
+
+    // Show modal dialog (blocks until closed)
+    modalDialog.exec();
+
+    QVERIFY(deleteTriggered);
+    QApplication::processEvents();
+
+    // Verify entry count unchanged - delete should have been blocked
+    QCOMPARE(entryView->model()->rowCount(), initialEntryCount);
+
+    // Now verify normal deletion still works after modal closes
+    clickIndex(entryView->model()->index(0, 1), entryView, Qt::LeftButton);
+    entryView->setFocus();
+    QApplication::processEvents();
+
+    if (!config()->get(Config::Security_NoConfirmMoveEntryToRecycleBin).toBool()) {
+        MessageBox::setNextAnswer(MessageBox::Move);
+    }
+    entryDeleteAction->trigger();
+    QApplication::processEvents();
+
+    // Verify entry was deleted normally
+    QCOMPARE(entryView->model()->rowCount(), initialEntryCount - 1);
 }
 
 void TestGui::addCannedEntries()

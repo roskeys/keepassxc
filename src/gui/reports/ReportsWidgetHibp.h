@@ -23,8 +23,8 @@
 
 #include <QWidget>
 
-#ifdef WITH_XC_NETWORKING
-#include "core/HibpDownloader.h"
+#ifdef KPXC_FEATURE_NETWORK
+#include "networking/HibpDownloader.h"
 #endif
 
 class Database;
@@ -43,7 +43,7 @@ class ReportsWidgetHibp : public QWidget
     Q_OBJECT
 public:
     explicit ReportsWidgetHibp(QWidget* parent = nullptr);
-    ~ReportsWidgetHibp();
+    ~ReportsWidgetHibp() override;
 
     void loadSettings(QSharedPointer<Database> db);
     void saveSettings();
@@ -78,7 +78,7 @@ private:
     QString m_editedPassword; // The old password of the entry we're editing
     bool m_editedExcluded; // The old "known bad" flag of the entry we're editing
 
-#ifdef WITH_XC_NETWORKING
+#ifdef KPXC_FEATURE_NETWORK
     HibpDownloader m_downloader; // This performs the actual HIBP online query
 #endif
 };

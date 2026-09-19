@@ -18,7 +18,7 @@
 #ifndef KEEPASSXC_TESTURLTOOLS_H
 #define KEEPASSXC_TESTURLTOOLS_H
 
-#include "core/UrlTools.h"
+#include "gui/UrlTools.h"
 #include <QObject>
 #include <QPointer>
 
@@ -28,16 +28,11 @@ class TestUrlTools : public QObject
 
 private slots:
     void initTestCase();
-    void init();
-
     void testTopLevelDomain();
     void testIsIpAddress();
     void testIsUrlIdentical();
     void testIsUrlValid();
     void testIsUrlValidWithLooseComparison();
     void testDomainHasIllegalCharacters();
-
-private:
-    QPointer<UrlTools> m_urlTools;
 };
 #endif // KEEPASSXC_TESTURLTOOLS_H

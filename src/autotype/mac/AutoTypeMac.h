@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2016 Lennart Glauer <mail@lennart-glauer.de>
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,21 +16,20 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSX_AUTOTYPEMAC_H
-#define KEEPASSX_AUTOTYPEMAC_H
+#ifndef KEEPASSXC_AUTOTYPEMAC_H
+#define KEEPASSXC_AUTOTYPEMAC_H
 
 #include <Carbon/Carbon.h>
-#include <QtPlugin>
 #include <memory>
 
-#include "autotype/AutoTypePlatformPlugin.h"
+#include "autotype/AutoTypePlatform.h"
 #include "autotype/AutoTypeAction.h"
+
+class MacUtils;
 
 class AutoTypePlatformMac : public QObject, public AutoTypePlatformInterface
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.keepassx.AutoTypePlatformMac")
-    Q_INTERFACES(AutoTypePlatformInterface)
 
 public:
     AutoTypePlatformMac();
@@ -39,17 +38,20 @@ public:
     WId activeWindow() override;
     QString activeWindowTitle() override;
     bool raiseWindow(WId pid) override;
-    AutoTypeExecutor* createExecutor() override;
+    AutoTypeExecutor& executor() const override;
 
     bool hideOwnWindow() override;
     bool raiseOwnWindow() override;
 
     void sendChar(const QChar& ch, bool isKeyDown);
-    void sendKey(Qt::Key key, bool isKeyDown, Qt::KeyboardModifiers modifiers = 0);
+    void sendKey(Qt::Key key, bool isKeyDown, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
 private:
     static int windowLayer(CFDictionaryRef window);
     static QString windowStringProperty(CFDictionaryRef window, CFStringRef propertyRef);
+
+    AutoTypeExecutor* m_executor = nullptr;
+
 };
 
 class AutoTypeExecutorMac : public AutoTypeExecutor
@@ -65,4 +67,4 @@ private:
     AutoTypePlatformMac* const m_platform;
 };
 
-#endif  // KEEPASSX_AUTOTYPEMAC_H
+#endif  // KEEPASSXC_AUTOTYPEMAC_H

@@ -66,6 +66,8 @@ public:
 #endif
     bool updateBinaryPath();
     void setUpdateBinaryPath(bool enabled);
+    bool allowGetDatabaseEntriesRequest();
+    void setAllowGetDatabaseEntriesRequest(bool enabled);
     bool allowExpiredCredentials();
     void setAllowExpiredCredentials(bool enabled);
 

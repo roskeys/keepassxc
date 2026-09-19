@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,9 +41,7 @@ public:
     {
         Html,
         PlainText,
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
         Markdown
-#endif
     };
 
     Q_ENUM(PreviewTextType)

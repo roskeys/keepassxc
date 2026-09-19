@@ -83,9 +83,7 @@ DatabaseSettingsWidgetEncryption::DatabaseSettingsWidgetEncryption(QWidget* pare
     connect(m_ui->parallelismSpinBox, SIGNAL(valueChanged(int)), SLOT(markDirty()));
 }
 
-DatabaseSettingsWidgetEncryption::~DatabaseSettingsWidgetEncryption()
-{
-}
+DatabaseSettingsWidgetEncryption::~DatabaseSettingsWidgetEncryption() = default;
 
 void DatabaseSettingsWidgetEncryption::showBasicEncryption(int decryptionMillisecs)
 {

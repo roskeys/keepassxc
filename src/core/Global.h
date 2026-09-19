@@ -1,4 +1,5 @@
 /*
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
  *  Copyright (C) 2012 Nokia Corporation and/or its subsidiary(-ies)
  *  Copyright (C) 2012 Intel Corporation
@@ -24,7 +25,7 @@
 #include <QTextStream>
 
 #if defined(Q_OS_WIN)
-#if defined(KEEPASSX_BUILDING_CORE)
+#if defined(KPXC_BUILDING_CORE)
 #define KEEPASSXC_EXPORT Q_DECL_IMPORT
 #else
 #define KEEPASSXC_EXPORT Q_DECL_EXPORT
@@ -41,23 +42,6 @@
 #define FILE_CASE_SENSITIVE Qt::CaseInsensitive
 #else
 #define FILE_CASE_SENSITIVE Qt::CaseSensitive
-#endif
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-// "Backport" a few things to the 'Qt' namespace as required for older Qt
-// versions.
-namespace Qt
-{
-    const QString::SplitBehavior SkipEmptyParts = QString::SkipEmptyParts;
-    inline QTextStream& endl(QTextStream& s)
-    {
-        return ::endl(s);
-    }
-    inline QTextStream& flush(QTextStream& s)
-    {
-        return ::flush(s);
-    }
-} // namespace Qt
 #endif
 
 static const auto TRUE_STR = QStringLiteral("true");

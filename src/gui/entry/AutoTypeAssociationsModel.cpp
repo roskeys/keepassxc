@@ -1,4 +1,5 @@
 /*
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -79,14 +80,14 @@ QVariant AutoTypeAssociationsModel::headerData(int section, Qt::Orientation orie
             return tr("Sequence");
         }
     } else {
-        return QVariant();
+        return {};
     }
 }
 
 QVariant AutoTypeAssociationsModel::data(const QModelIndex& index, int role) const
 {
     if (!index.isValid()) {
-        return QVariant();
+        return {};
     }
 
     if (role == Qt::DisplayRole) {
@@ -96,7 +97,7 @@ QVariant AutoTypeAssociationsModel::data(const QModelIndex& index, int role) con
                 return tr("(empty)");
             }
             if (m_entry) {
-                window = m_entry->maskPasswordPlaceholders(window);
+                window = EntryPlaceholders::maskPasswordPlaceholders(window);
                 window = m_entry->resolveMultiplePlaceholders(window);
             }
             return window;
@@ -108,7 +109,7 @@ QVariant AutoTypeAssociationsModel::data(const QModelIndex& index, int role) con
             return sequence;
         }
     } else {
-        return QVariant();
+        return {};
     }
 }
 

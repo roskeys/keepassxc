@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2018 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2013 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -30,6 +30,7 @@ QTEST_GUILESS_MAIN(TestEntry)
 void TestEntry::initTestCase()
 {
     QVERIFY(Crypto::init());
+    QLocale::setDefault(QLocale::c());
 }
 
 void TestEntry::testHistoryItemDeletion()
@@ -45,6 +46,30 @@ void TestEntry::testHistoryItemDeletion()
     entry->removeHistoryItems(historyEntriesToRemove);
     QCOMPARE(entry->historyItems().size(), 0);
     QVERIFY(historyEntry.isNull());
+}
+
+void TestEntry::testHistoryItemCustomData()
+{
+    QScopedPointer<Entry> entry(new Entry());
+    entry->setUuid(QUuid::createUuid());
+    entry->setTitle("Original Title");
+    entry->customData()->set("CustomKey", "CustomValue");
+
+    entry->beginUpdate();
+    entry->setTitle("New Title");
+    entry->endUpdate();
+
+    // The history item must carry the custom data present before the update
+    QCOMPARE(entry->historyItems().size(), 1);
+    const Entry* historyItem = entry->historyItems().constFirst();
+    QCOMPARE(historyItem->customData()->value("CustomKey"), QString("CustomValue"));
+
+    // Restoring from the history item restores the custom data
+    entry->customData()->remove("CustomKey");
+    QVERIFY(entry->customData()->isEmpty());
+
+    entry->copyDataFrom(historyItem);
+    QCOMPARE(entry->customData()->value("CustomKey"), QString("CustomValue"));
 }
 
 void TestEntry::testCopyDataFrom()
@@ -116,7 +141,7 @@ void TestEntry::testClone()
     QScopedPointer<Entry> entryCloneRename(entryOrg->clone(Entry::CloneRenameTitle));
     QCOMPARE(entryCloneRename->uuid(), entryOrg->uuid());
     QCOMPARE(entryCloneRename->title(), QString("New Title - Clone"));
-    // Cloning should not modify time info unless explicity requested
+    // Cloning should not modify time info unless explicitly requested
     QCOMPARE(entryCloneRename->timeInfo(), entryOrg->timeInfo());
 
     QScopedPointer<Entry> entryCloneResetTime(entryOrg->clone(Entry::CloneResetTimeInfo));
@@ -728,7 +753,7 @@ void TestEntry::testResolveClonedEntry()
 
 void TestEntry::testIsRecycled()
 {
-    Entry* entry = new Entry();
+    auto entry = new Entry();
     QVERIFY(!entry->isRecycled());
 
     Database db;
@@ -741,10 +766,10 @@ void TestEntry::testIsRecycled()
     db.recycleEntry(entry);
     QVERIFY(entry->isRecycled());
 
-    Group* group1 = new Group();
+    auto group1 = new Group();
     group1->setParent(root);
 
-    Entry* entry1 = new Entry();
+    auto entry1 = new Entry();
     entry1->setGroup(group1);
     QVERIFY(!entry1->isRecycled());
     db.recycleGroup(group1);
@@ -757,16 +782,16 @@ void TestEntry::testMoveUpDown()
     Group* root = db.rootGroup();
     QVERIFY(root);
 
-    Entry* entry0 = new Entry();
+    auto entry0 = new Entry();
     QVERIFY(entry0);
     entry0->setGroup(root);
-    Entry* entry1 = new Entry();
+    auto entry1 = new Entry();
     QVERIFY(entry1);
     entry1->setGroup(root);
-    Entry* entry2 = new Entry();
+    auto entry2 = new Entry();
     QVERIFY(entry2);
     entry2->setGroup(root);
-    Entry* entry3 = new Entry();
+    auto entry3 = new Entry();
     QVERIFY(entry3);
     entry3->setGroup(root);
     // default order, straight
@@ -904,4 +929,48 @@ void TestEntry::testPreviousParentGroup()
     entry->setGroup(group2);
     QVERIFY(entry->previousParentGroupUuid() == group1->uuid());
     QVERIFY(entry->previousParentGroup() == group1);
+}
+
+void TestEntry::testContainsPlaceholder()
+{
+    // Dynamic placeholders
+    QVERIFY(!EntryPlaceholders::containsPlaceholder(""));
+    QVERIFY(!EntryPlaceholders::containsPlaceholder("testString{REF:nothing")); // Placeholder is not finished
+    QVERIFY(EntryPlaceholders::containsPlaceholder("testString{REF:P@T:Other Entry}something"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{URL:USERNAME}yes"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{URL:USERNAME}yes{REF:A@O:Attribute 1}"));
+    QVERIFY(!EntryPlaceholders::containsPlaceholder("{NOTAREALPLACEHOLDER:USERNAME}yes")); // Unknown placeholder
+    QVERIFY(EntryPlaceholders::containsPlaceholder("yes{URL:PORT}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("yes{S:KPEX_PASSKEYS_USER_ID}no"));
+
+    // Placeholder can be inside {} brackets, and must be identified
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{{REF:U@A:https://url.com/}}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{{{REF:U@A:https://url.com/}}}"));
+
+    // This kind of mixup is not considered as a placeholder
+    QVERIFY(!EntryPlaceholders::containsPlaceholder("{[{REF:U@A:https://url.com/}]}"));
+
+    // Static placeholdersi
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{TITLE}"));
+    QVERIFY(!EntryPlaceholders::containsPlaceholder("{TITLE2}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{USERNAME}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{PASSWORD}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{URL}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{NOTES}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("inthe{NOTES}middle"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{TOTP}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("{{TOTP}}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("after{{TOTP}}"));
+    QVERIFY(EntryPlaceholders::containsPlaceholder("test\\{TOTP\\}"));
+
+    // Max depth (10), and max depth exceeded
+    for (auto i = 1; i <= EntryPlaceholders::ResolveMaximumDepth + 1; ++i) {
+        const auto placeholder = QString("{").repeated(i) + QString("TOTP") + QString("}").repeated(i);
+        if (i <= EntryPlaceholders::ResolveMaximumDepth) {
+            QVERIFY(EntryPlaceholders::containsPlaceholder(placeholder));
+        } else {
+            // Max depth exceeded
+            QVERIFY(!EntryPlaceholders::containsPlaceholder(placeholder));
+        }
+    }
 }

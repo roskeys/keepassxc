@@ -46,7 +46,7 @@ public:
     };
 
     explicit PasswordGeneratorWidget(QWidget* parent = nullptr);
-    ~PasswordGeneratorWidget();
+    ~PasswordGeneratorWidget() override;
 
     void loadSettings();
     void saveSettings();

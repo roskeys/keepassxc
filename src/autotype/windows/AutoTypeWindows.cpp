@@ -19,6 +19,7 @@
 #include "AutoTypeWindows.h"
 #include "core/Tools.h"
 #include "gui/osutils/OSUtils.h"
+#include "gui/osutils/winutils/WinUtils.h"
 
 #include <VersionHelpers.h>
 
@@ -26,6 +27,14 @@
 #define MAX_WINDOW_TITLE_LENGTH 1024
 
 #define MOD_NOREPEAT 0x4000 // Missing in MinGW
+
+//
+// Constructor
+//
+AutoTypePlatformWin::AutoTypePlatformWin()
+    : m_executor(new AutoTypeExecutorWin(this))
+{
+}
 
 //
 // Test if os version is Windows 7 or later
@@ -63,9 +72,9 @@ QString AutoTypePlatformWin::activeWindowTitle()
     return windowTitle(::GetForegroundWindow());
 }
 
-AutoTypeExecutor* AutoTypePlatformWin::createExecutor()
+AutoTypeExecutor& AutoTypePlatformWin::executor() const
 {
-    return new AutoTypeExecutorWin(this);
+    return *m_executor;
 }
 
 //

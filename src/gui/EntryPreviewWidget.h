@@ -65,16 +65,13 @@ private slots:
 
     void updateGroupHeaderLine();
     void updateGroupGeneralTab();
-#if defined(WITH_XC_KEESHARE)
     void updateGroupSharingTab();
-#endif
 
     void updateTotpLabel();
     void updateTabIndexes();
     void openEntryUrl();
 
 private:
-    void removeTab(QTabWidget* tabWidget, QWidget* widget);
     void setTabEnabled(QTabWidget* tabWidget, QWidget* widget, bool enabled);
 
     static QString hierarchy(const Group* group, const QString& title);

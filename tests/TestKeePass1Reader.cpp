@@ -1,5 +1,6 @@
 /*
- *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,9 +40,10 @@ void TestKeePass1Reader::initTestCase()
     QString filename = QString(KEEPASSX_TEST_DATA_DIR).append("/basic.kdb");
 
     KeePass1Reader reader;
-    m_db = reader.readDatabase(filename, "masterpw", 0);
+    m_db = reader.readDatabase(filename, "masterpw", nullptr);
     QVERIFY(m_db);
     QVERIFY(!reader.hasError());
+    QLocale::setDefault(QLocale::c());
 }
 
 void TestKeePass1Reader::testBasic()
@@ -213,13 +215,14 @@ void TestKeePass1Reader::testTwofish()
 
     QString dbFilename = QString("%1/%2.kdb").arg(QString(KEEPASSX_TEST_DATA_DIR), name);
 
-    auto db = reader.readDatabase(dbFilename, "masterpw", 0);
+    auto db = reader.readDatabase(dbFilename, "masterpw", nullptr);
     QVERIFY(db);
     QVERIFY(!reader.hasError());
     QCOMPARE(db->rootGroup()->children().size(), 1);
     QCOMPARE(db->rootGroup()->children().at(0)->name(), name);
 }
 
+#ifdef Q_OS_WIN
 void TestKeePass1Reader::testCP1252Password()
 {
     QString name = "CP-1252";
@@ -229,12 +232,13 @@ void TestKeePass1Reader::testCP1252Password()
     QString dbFilename = QString("%1/%2.kdb").arg(QString(KEEPASSX_TEST_DATA_DIR), name);
     QString password = QString::fromUtf8("\xe2\x80\x9e\x70\x61\x73\x73\x77\x6f\x72\x64\xe2\x80\x9d");
 
-    auto db = reader.readDatabase(dbFilename, password, 0);
+    auto db = reader.readDatabase(dbFilename, password, nullptr);
     QVERIFY(db);
     QVERIFY(!reader.hasError());
     QCOMPARE(db->rootGroup()->children().size(), 1);
     QCOMPARE(db->rootGroup()->children().at(0)->name(), name);
 }
+#endif
 
 void TestKeePass1Reader::cleanupTestCase()
 {
@@ -244,7 +248,7 @@ QDateTime TestKeePass1Reader::genDT(int year, int month, int day, int hour, int 
 {
     QDate date(year, month, day);
     QTime time(hour, min, 0);
-    return QDateTime(date, time, Qt::UTC);
+    return {date, time, Qt::UTC};
 }
 
 void TestKeePass1Reader::reopenDatabase(QSharedPointer<Database> db,

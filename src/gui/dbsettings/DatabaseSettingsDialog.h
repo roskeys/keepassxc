@@ -28,19 +28,18 @@ class Database;
 class DatabaseSettingsWidgetGeneral;
 class DatabaseSettingsWidgetEncryption;
 class DatabaseSettingsWidgetDatabaseKey;
-#ifdef WITH_XC_BROWSER
+#ifdef KPXC_FEATURE_BROWSER
 class DatabaseSettingsWidgetBrowser;
 #endif
-#ifdef WITH_XC_KEESHARE
 class DatabaseSettingsWidgetKeeShare;
-#endif
-#ifdef WITH_XC_REMOTESYNC
-class DatabaseSettingsWidgetRemoteSync;
-#endif
-#ifdef WITH_XC_FDOSECRETS
+#ifdef KPXC_FEATURE_FDOSECRETS
 class DatabaseSettingsWidgetFdoSecrets;
 #endif
 class DatabaseSettingsWidgetMaintenance;
+class DatabaseSettingsWidgetRemote;
+#ifdef WITH_XC_REMOTESYNC
+class DatabaseSettingsWidgetRemoteSync;
+#endif
 class QTabWidget;
 
 class DatabaseSettingsDialog : public EditWidget
@@ -54,6 +53,7 @@ public:
 
     void load(const QSharedPointer<Database>& db);
     void showDatabaseKeySettings(int index = 0);
+    void showRemoteSettings();
 
 signals:
     void editFinished(bool accepted);
@@ -68,19 +68,18 @@ private:
     QPointer<QTabWidget> m_securityTabWidget;
     QPointer<DatabaseSettingsWidgetDatabaseKey> m_databaseKeyWidget;
     QPointer<DatabaseSettingsWidgetEncryption> m_encryptionWidget;
-#ifdef WITH_XC_BROWSER
+#ifdef KPXC_FEATURE_BROWSER
     QPointer<DatabaseSettingsWidgetBrowser> m_browserWidget;
 #endif
-#ifdef WITH_XC_KEESHARE
     QPointer<DatabaseSettingsWidgetKeeShare> m_keeShareWidget;
-#endif
-#ifdef WITH_XC_REMOTESYNC
-    QPointer<DatabaseSettingsWidgetRemoteSync> m_remoteSyncWidget;
-#endif
-#ifdef WITH_XC_FDOSECRETS
+#ifdef KPXC_FEATURE_FDOSECRETS
     QPointer<DatabaseSettingsWidgetFdoSecrets> m_fdoSecretsWidget;
 #endif
     QPointer<DatabaseSettingsWidgetMaintenance> m_maintenanceWidget;
+    QPointer<DatabaseSettingsWidgetRemote> m_remoteWidget;
+#ifdef WITH_XC_REMOTESYNC
+    QPointer<DatabaseSettingsWidgetRemoteSync> m_remoteSyncWidget;
+#endif
 };
 
 #endif // KEEPASSXC_DATABASESETTINGSDIALOG_H

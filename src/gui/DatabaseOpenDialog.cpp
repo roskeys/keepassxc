@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2018 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,14 +20,11 @@
 #include "DatabaseOpenWidget.h"
 #include "DatabaseTabWidget.h"
 #include "DatabaseWidget.h"
+#include "GuiTools.h"
 
 #include <QFileInfo>
 #include <QLayout>
 #include <QShortcut>
-
-#ifdef Q_OS_WIN
-#include <QtPlatformHeaders/QWindowsWindowFunctions>
-#endif
 
 DatabaseOpenDialog::DatabaseOpenDialog(QWidget* parent)
     : QDialog(parent)
@@ -36,20 +33,14 @@ DatabaseOpenDialog::DatabaseOpenDialog(QWidget* parent)
 {
     setWindowTitle(tr("Unlock Database - KeePassXC"));
     setWindowFlags(Qt::Dialog);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
-#else
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-#endif
 #ifdef Q_OS_LINUX
     // Linux requires this to overcome some Desktop Environments (also no Quick Unlock)
     setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
 #endif
     // block input to the main window/application while the dialog is open
     setWindowModality(Qt::ApplicationModal);
-#ifdef Q_OS_WIN
-    QWindowsWindowFunctions::setWindowActivationBehavior(QWindowsWindowFunctions::AlwaysActivateWindow);
-#endif
+
     connect(m_view, &DatabaseOpenWidget::dialogFinished, this, &DatabaseOpenDialog::complete);
 
     m_tabBar->setAutoHide(true);
@@ -70,16 +61,16 @@ DatabaseOpenDialog::DatabaseOpenDialog(QWidget* parent)
 #ifdef Q_OS_MACOS
     dbTabModifier = Qt::ALT;
 #endif
-    auto* shortcut = new QShortcut(Qt::CTRL + Qt::Key_PageUp, this);
+    auto* shortcut = new QShortcut(Qt::CTRL | Qt::Key_PageUp, this);
     shortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(shortcut, &QShortcut::activated, this, [this]() { selectTabOffset(-1); });
-    shortcut = new QShortcut(dbTabModifier + Qt::SHIFT + Qt::Key_Tab, this);
+    shortcut = new QShortcut(dbTabModifier | Qt::SHIFT | Qt::Key_Tab, this);
     shortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(shortcut, &QShortcut::activated, this, [this]() { selectTabOffset(-1); });
-    shortcut = new QShortcut(Qt::CTRL + Qt::Key_PageDown, this);
+    shortcut = new QShortcut(Qt::CTRL | Qt::Key_PageDown, this);
     shortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(shortcut, &QShortcut::activated, this, [this]() { selectTabOffset(1); });
-    shortcut = new QShortcut(dbTabModifier + Qt::Key_Tab, this);
+    shortcut = new QShortcut(dbTabModifier | Qt::Key_Tab, this);
     shortcut->setContext(Qt::WidgetWithChildrenShortcut);
     connect(shortcut, &QShortcut::activated, this, [this]() { selectTabOffset(1); });
 }
@@ -87,6 +78,9 @@ DatabaseOpenDialog::DatabaseOpenDialog(QWidget* parent)
 void DatabaseOpenDialog::showEvent(QShowEvent* event)
 {
     QDialog::showEvent(event);
+
+    GuiTools::centerWidgetOnActiveScreen(this);
+
     QTimer::singleShot(100, this, [this] {
         if (m_view->isOnQuickUnlockScreen() && !m_view->unlockingDatabase()) {
             m_view->triggerQuickUnlock();
@@ -146,7 +140,7 @@ void DatabaseOpenDialog::tabChanged(int index)
         setTarget(dbWidget, dbWidget->database()->filePath());
     } else {
         // if these list sizes don't match, there's a bug somewhere nearby
-        qWarning("DatabaseOpenDialog: mismatch between tab count %d and DB count %d",
+        qWarning("DatabaseOpenDialog: mismatch between tab count %d and DB count %" PRIdQSIZETYPE "",
                  m_tabBar->count(),
                  m_tabDbWidgets.count());
     }
@@ -228,10 +222,20 @@ void DatabaseOpenDialog::complete(bool accepted)
 {
     // save DB, since DatabaseOpenWidget will reset its data after accept() is called
     m_db = m_view->database();
+    if (m_db && m_intent == Intent::RemoteSync) {
+        m_db->markAsTemporaryDatabase();
+    }
 
     if (accepted) {
         accept();
     } else {
         reject();
     }
+}
+
+void DatabaseOpenDialog::closeEvent(QCloseEvent* e)
+{
+    emit dialogFinished(false, m_currentDbWidget);
+    clearForms();
+    QDialog::closeEvent(e);
 }

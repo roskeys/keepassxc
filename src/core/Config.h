@@ -21,6 +21,7 @@
 
 #include <QPointer>
 #include <QVariant>
+#include <QVector>
 
 class QSettings;
 
@@ -63,6 +64,11 @@ public:
         AutoTypeHideExpiredEntry,
         AutoTypeDialogSortColumn,
         AutoTypeDialogSortOrder,
+        AutoTypeDesktopPortalPersistConnection,
+        AutoTypeDesktopPortalUseClipboard,
+        AutoTypeDesktopPortalPersistMode,
+        AutoTypeDesktopPortalRestoreToken,
+        AutoTypePreferDesktopPortals,
         GlobalAutoTypeKey,
         GlobalAutoTypeModifiers,
         GlobalAutoTypeRetypeTime,
@@ -103,6 +109,7 @@ public:
         GUI_ShowExpiredEntriesOnDatabaseUnlock,
         GUI_ShowExpiredEntriesOnDatabaseUnlockOffsetDays,
         GUI_FontSizeOffset,
+        GUI_XDPGlobalShortcutsConfigured,
 
         GUI_MainWindowGeometry,
         GUI_MainWindowState,
@@ -146,6 +153,7 @@ public:
         Browser_UseCustomProxy,
         Browser_CustomProxyLocation,
         Browser_UpdateBinaryPath,
+        Browser_AllowGetDatabaseEntriesRequest,
         Browser_AllowExpiredCredentials,
         Browser_AlwaysAllowAccess,
         Browser_AlwaysAllowUpdate,
@@ -208,6 +216,12 @@ public:
         Deleted
     };
 
+    struct ShortcutEntry
+    {
+        QString name;
+        QString shortcut;
+    };
+
     ~Config() override;
     QVariant get(ConfigKey key);
     QVariant getDefault(ConfigKey key);
@@ -221,9 +235,11 @@ public:
     bool importSettings(const QString& fileName);
     void exportSettings(const QString& fileName) const;
 
+    QList<ShortcutEntry> getShortcuts() const;
+    void setShortcuts(const QList<ShortcutEntry>& shortcuts);
+
     static Config* instance();
     static void createConfigFromFile(const QString& configFileName, const QString& localConfigFileName = {});
-    static void createTempFileInstance();
     static bool isPortable();
     static QString portableConfigDir();
 

@@ -40,6 +40,9 @@ private slots:
     void testSettingsDefaultTabOrder();
     void testCreateDatabase();
     void testMergeDatabase();
+    void testRemoteSyncDatabaseSameKey();
+    void testRemoteSyncDatabaseRequiresPassword();
+    void testOpenRemoteDatabase();
     void testAutoreloadDatabase();
     void testTabs();
     void testEditEntry();
@@ -66,7 +69,9 @@ private slots:
     void testSortGroups();
     void testAutoType();
     void testTrayRestoreHide();
+    void testShortcutConfig();
     void testMenuActionStates();
+    void testDeleteEntryDuringModalDialog();
 
 private:
     void addCannedEntries();
@@ -85,6 +90,7 @@ private:
                     Qt::KeyboardModifiers stateKey = {});
     void checkSaveDatabase();
     void checkStatusBarText(const QString& textFragment);
+    void prepareAndTriggerRemoteSync();
 
     QScopedPointer<MainWindow> m_mainWindow;
     QPointer<QLabel> m_statusBarLabel;

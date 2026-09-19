@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ void TestMerge::initTestCase()
     qRegisterMetaType<Entry*>("Entry*");
     qRegisterMetaType<Group*>("Group*");
     QVERIFY(Crypto::init());
+    QLocale::setDefault(QLocale::c());
 }
 
 void TestMerge::init()
@@ -72,7 +73,7 @@ void TestMerge::testMergeIntoNew()
 }
 
 /**
- * Merging when no changes occured should not
+ * Merging when no changes occurred should not
  * have any side effect.
  */
 void TestMerge::testMergeNoChanges()
@@ -295,7 +296,7 @@ void TestMerge::testResolveConflictTemplate(
     timestamps["initialTime"] = m_clock->currentDateTimeUtc();
     QScopedPointer<Database> dbDestination(createTestDatabase());
 
-    Entry* deletedEntry1 = new Entry();
+    auto deletedEntry1 = new Entry();
     deletedEntry1->setUuid(QUuid::createUuid());
 
     deletedEntry1->beginUpdate();
@@ -303,7 +304,7 @@ void TestMerge::testResolveConflictTemplate(
     deletedEntry1->setTitle("deletedDestination");
     deletedEntry1->endUpdate();
 
-    Entry* deletedEntry2 = new Entry();
+    auto deletedEntry2 = new Entry();
     deletedEntry2->setUuid(QUuid::createUuid());
 
     deletedEntry2->beginUpdate();
@@ -378,7 +379,7 @@ void TestMerge::testResolveConflictTemplate(
 
     m_clock->advanceMinute(1);
 
-    Entry* destinationEntrySingle = new Entry();
+    auto destinationEntrySingle = new Entry();
     destinationEntrySingle->setUuid(QUuid::createUuid());
 
     destinationEntrySingle->beginUpdate();
@@ -386,7 +387,7 @@ void TestMerge::testResolveConflictTemplate(
     destinationEntrySingle->setTitle("entryDestination");
     destinationEntrySingle->endUpdate();
 
-    Entry* sourceEntrySingle = new Entry();
+    auto sourceEntrySingle = new Entry();
     sourceEntrySingle->setUuid(QUuid::createUuid());
 
     sourceEntrySingle->beginUpdate();
@@ -440,7 +441,7 @@ void TestMerge::testDeletionConflictTemplate(int mergeMode,
     //   entry indirectly deleted in target after updated in source
 
     auto createGroup = [&](const char* name, Group* parent) {
-        Group* group = new Group();
+        auto group = new Group();
         group->setUuid(QUuid::createUuid());
         group->setName(name);
         group->setParent(parent, 0);
@@ -448,7 +449,7 @@ void TestMerge::testDeletionConflictTemplate(int mergeMode,
         return group;
     };
     auto createEntry = [&](const char* title, Group* parent) {
-        Entry* entry = new Entry();
+        auto entry = new Entry();
         entry->setUuid(QUuid::createUuid());
         entry->setTitle(title);
         entry->setGroup(parent);
@@ -523,7 +524,7 @@ void TestMerge::testDeletionConflictTemplate(int mergeMode,
 
     QPointer<Group> targetGroupDeletedInTargetAfterEntryUpdatedInSource =
         dbDestination->rootGroup()->findGroupByUuid(identifiers["GroupDeletedInTargetAfterEntryUpdatedInSource"]);
-    QPointer<Entry> sourceEntryDeletedInTargetAfterEntryUpdatedInSoruce =
+    QPointer<Entry> sourceEntryDeletedInTargetAfterEntryUpdatedInSource =
         dbSource->rootGroup()->findEntryByUuid(identifiers["EntryDeletedInTargetAfterEntryUpdatedInSource"]);
 
     // simulate some work in the dbs (manipulate the history)
@@ -537,7 +538,7 @@ void TestMerge::testDeletionConflictTemplate(int mergeMode,
     delete sourceGroupDeletedInSourceBeforeEntryUpdatedInTarget.data();
     changeEntry(targetEntryDeletedInSourceAfterEntryUpdatedInTarget);
     delete targetGroupDeletedInTargetBeforeEntryUpdatedInSource.data();
-    changeEntry(sourceEntryDeletedInTargetAfterEntryUpdatedInSoruce);
+    changeEntry(sourceEntryDeletedInTargetAfterEntryUpdatedInSource);
 
     m_clock->advanceMinute(1);
 
@@ -569,7 +570,7 @@ void TestMerge::assertDeletionNewerOnly(Database* db, const QMap<QString, QUuid>
     // newer deletion in source forces deletion
     QVERIFY(!mergedRootGroup->findEntryByUuid(identifiers["EntryDeletedInSourceAfterChangedInTarget"]));
     QVERIFY(db->containsDeletedObject(identifiers["EntryDeletedInSourceAfterChangedInTarget"]));
-    // newer change in source privents deletion
+    // newer change in source prevents deletion
     QVERIFY(mergedRootGroup->findEntryByUuid(identifiers["EntryDeletedInTargetBeforeChangedInSource"]));
     QVERIFY(!db->containsDeletedObject(identifiers["EntryDeletedInTargetBeforeChangedInSource"]));
     // newer deletion in target forces deletion
@@ -585,7 +586,7 @@ void TestMerge::assertDeletionNewerOnly(Database* db, const QMap<QString, QUuid>
     QVERIFY(db->containsDeletedObject(identifiers["GroupDeletedInSourceAfterEntryUpdatedInTarget"]));
     QVERIFY(!mergedRootGroup->findEntryByUuid(identifiers["EntryDeletedInSourceAfterEntryUpdatedInTarget"]));
     QVERIFY(db->containsDeletedObject(identifiers["EntryDeletedInSourceAfterEntryUpdatedInTarget"]));
-    // newer change in source privents deletion
+    // newer change in source prevents deletion
     QVERIFY(mergedRootGroup->findGroupByUuid(identifiers["GroupDeletedInTargetBeforeEntryUpdatedInSource"]));
     QVERIFY(!db->containsDeletedObject(identifiers["GroupDeletedInTargetBeforeEntryUpdatedInSource"]));
     QVERIFY(mergedRootGroup->findEntryByUuid(identifiers["EntryDeletedInTargetBeforeEntryUpdatedInSource"]));
@@ -830,7 +831,7 @@ void TestMerge::testCreateNewGroups()
 
     m_clock->advanceSecond(1);
 
-    Group* groupSourceCreated = new Group();
+    auto groupSourceCreated = new Group();
     groupSourceCreated->setName("group3");
     groupSourceCreated->setUuid(QUuid::createUuid());
     groupSourceCreated->setParent(dbSource->rootGroup());
@@ -853,7 +854,7 @@ void TestMerge::testMoveEntryIntoNewGroup()
 
     m_clock->advanceSecond(1);
 
-    Group* groupSourceCreated = new Group();
+    auto groupSourceCreated = new Group();
     groupSourceCreated->setName("group3");
     groupSourceCreated->setUuid(QUuid::createUuid());
     groupSourceCreated->setParent(dbSource->rootGroup());
@@ -888,7 +889,7 @@ void TestMerge::testUpdateEntryDifferentLocation()
     QScopedPointer<Database> dbSource(
         createTestDatabaseStructureClone(dbDestination.data(), Entry::CloneNoFlags, Group::CloneIncludeEntries));
 
-    Group* groupDestinationCreated = new Group();
+    auto groupDestinationCreated = new Group();
     groupDestinationCreated->setName("group3");
     groupDestinationCreated->setUuid(QUuid::createUuid());
     groupDestinationCreated->setParent(dbDestination->rootGroup());
@@ -926,7 +927,7 @@ void TestMerge::testUpdateEntryDifferentLocation()
     QCOMPARE(entryDestinationMerged->username(), QString("username"));
     QCOMPARE(entryDestinationMerged->group()->name(), QString("group3"));
     QCOMPARE(uuidBeforeSyncing, entryDestinationMerged->uuid());
-    // default merge strategie is KeepNewer - therefore the older location is used!
+    // default merge strategy is KeepNewer - therefore the older location is used!
     QCOMPARE(entryDestinationMerged->timeInfo().locationChanged(), sourceLocationChanged);
 }
 
@@ -975,7 +976,7 @@ void TestMerge::testUpdateGroup()
 void TestMerge::testUpdateGroupLocation()
 {
     QScopedPointer<Database> dbDestination(createTestDatabase());
-    Group* group3DestinationCreated = new Group();
+    auto group3DestinationCreated = new Group();
     QUuid group3Uuid = QUuid::createUuid();
     group3DestinationCreated->setUuid(group3Uuid);
     group3DestinationCreated->setName("group3");
@@ -996,8 +997,8 @@ void TestMerge::testUpdateGroupLocation()
     QVERIFY(group3SourceMoved != nullptr);
     group3SourceMoved->setParent(dbSource->rootGroup()->findChildByName("group2"));
 
-    QDateTime movedLocaltionChanged = group3SourceMoved->timeInfo().locationChanged();
-    QVERIFY(initialLocationChanged < movedLocaltionChanged);
+    QDateTime movedLocationChanged = group3SourceMoved->timeInfo().locationChanged();
+    QVERIFY(initialLocationChanged < movedLocationChanged);
 
     m_clock->advanceSecond(1);
 
@@ -1007,7 +1008,7 @@ void TestMerge::testUpdateGroupLocation()
     QPointer<Group> group3DestinationMerged1 = dbDestination->rootGroup()->findGroupByUuid(group3Uuid);
     QVERIFY(group3DestinationMerged1 != nullptr);
     QCOMPARE(group3DestinationMerged1->parent(), dbDestination->rootGroup()->findChildByName("group2"));
-    QCOMPARE(group3DestinationMerged1->timeInfo().locationChanged(), movedLocaltionChanged);
+    QCOMPARE(group3DestinationMerged1->timeInfo().locationChanged(), movedLocationChanged);
 
     m_clock->advanceSecond(1);
 
@@ -1017,7 +1018,7 @@ void TestMerge::testUpdateGroupLocation()
     QPointer<Group> group3DestinationMerged2 = dbDestination->rootGroup()->findGroupByUuid(group3Uuid);
     QVERIFY(group3DestinationMerged2 != nullptr);
     QCOMPARE(group3DestinationMerged2->parent(), dbDestination->rootGroup()->findChildByName("group2"));
-    QCOMPARE(group3DestinationMerged1->timeInfo().locationChanged(), movedLocaltionChanged);
+    QCOMPARE(group3DestinationMerged1->timeInfo().locationChanged(), movedLocationChanged);
 }
 
 /**
@@ -1231,7 +1232,7 @@ void TestMerge::testDeletedGroup()
 
     QPointer<Group> group2DestinationInitial = dbDestination->rootGroup()->findChildByName("group2");
     QVERIFY(group2DestinationInitial != nullptr);
-    Entry* entry3DestinationCreated = new Entry();
+    auto entry3DestinationCreated = new Entry();
     entry3DestinationCreated->beginUpdate();
     entry3DestinationCreated->setUuid(QUuid::createUuid());
     entry3DestinationCreated->setGroup(group2DestinationInitial);
@@ -1454,19 +1455,19 @@ void TestMerge::testMergeModified()
 
 Database* TestMerge::createTestDatabase()
 {
-    Database* db = new Database();
+    auto db = new Database();
 
-    Group* group1 = new Group();
+    auto group1 = new Group();
     group1->setName("group1");
     group1->setUuid(QUuid::createUuid());
 
-    Group* group2 = new Group();
+    auto group2 = new Group();
     group2->setName("group2");
     group2->setUuid(QUuid::createUuid());
 
-    Entry* entry1 = new Entry();
+    auto entry1 = new Entry();
     entry1->setUuid(QUuid::createUuid());
-    Entry* entry2 = new Entry();
+    auto entry2 = new Entry();
     entry2->setUuid(QUuid::createUuid());
 
     m_clock->advanceYear(1);

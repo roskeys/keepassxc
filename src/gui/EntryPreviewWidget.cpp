@@ -25,10 +25,8 @@
 #include "core/Totp.h"
 #include "gui/Font.h"
 #include "gui/Icons.h"
-#if defined(WITH_XC_KEESHARE)
 #include "keeshare/KeeShare.h"
 #include "keeshare/KeeShareSettings.h"
-#endif
 
 #include <QScrollBar>
 #include <QTabWidget>
@@ -106,15 +104,9 @@ EntryPreviewWidget::EntryPreviewWidget(QWidget* parent)
     connect(m_ui->groupTabWidget, SIGNAL(tabBarClicked(int)), SLOT(updateTabIndexes()), Qt::QueuedConnection);
 
     setFocusProxy(m_ui->entryTabWidget);
-
-#if !defined(WITH_XC_KEESHARE)
-    removeTab(m_ui->groupTabWidget, m_ui->groupShareTab);
-#endif
 }
 
-EntryPreviewWidget::~EntryPreviewWidget()
-{
-}
+EntryPreviewWidget::~EntryPreviewWidget() = default;
 
 bool EntryPreviewWidget::eventFilter(QObject* object, QEvent* event)
 {
@@ -209,10 +201,7 @@ void EntryPreviewWidget::refresh()
     } else if (m_currentGroup) {
         updateGroupHeaderLine();
         updateGroupGeneralTab();
-
-#if defined(WITH_XC_KEESHARE)
         updateGroupSharingTab();
-#endif
 
         setVisible(!config()->get(Config::GUI_HidePreviewPanel).toBool());
 
@@ -538,7 +527,6 @@ void EntryPreviewWidget::updateGroupGeneralTab()
     }
 }
 
-#if defined(WITH_XC_KEESHARE)
 void EntryPreviewWidget::updateGroupSharingTab()
 {
     Q_ASSERT(m_currentGroup);
@@ -547,7 +535,6 @@ void EntryPreviewWidget::updateGroupSharingTab()
     m_ui->groupShareTypeLabel->setText(KeeShare::referenceTypeLabel(reference));
     m_ui->groupSharePathLabel->setText(reference.path);
 }
-#endif
 
 void EntryPreviewWidget::updateTotpLabel()
 {
@@ -584,13 +571,6 @@ void EntryPreviewWidget::openEntryUrl()
     if (m_currentEntry) {
         emit entryUrlActivated(m_currentEntry);
     }
-}
-
-void EntryPreviewWidget::removeTab(QTabWidget* tabWidget, QWidget* widget)
-{
-    const int tabIndex = tabWidget->indexOf(widget);
-    Q_ASSERT(tabIndex != -1);
-    tabWidget->removeTab(tabIndex);
 }
 
 void EntryPreviewWidget::setTabEnabled(QTabWidget* tabWidget, QWidget* widget, bool enabled)

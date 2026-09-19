@@ -81,14 +81,14 @@ QVariant EntryAttributesModel::headerData(int section, Qt::Orientation orientati
     if ((orientation == Qt::Horizontal) && (role == Qt::DisplayRole) && (section == 0)) {
         return tr("Name");
     } else {
-        return QVariant();
+        return {};
     }
 }
 
 QVariant EntryAttributesModel::data(const QModelIndex& index, int role) const
 {
     if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::EditRole)) {
-        return QVariant();
+        return {};
     }
 
     return m_attributes.at(index.row());
@@ -125,7 +125,7 @@ QModelIndex EntryAttributesModel::indexByKey(const QString& key) const
     int row = m_attributes.indexOf(key);
 
     if (row == -1) {
-        return QModelIndex();
+        return {};
     } else {
         return index(row, 0);
     }
@@ -134,7 +134,7 @@ QModelIndex EntryAttributesModel::indexByKey(const QString& key) const
 QString EntryAttributesModel::keyByIndex(const QModelIndex& index) const
 {
     if (!index.isValid()) {
-        return QString();
+        return {};
     } else {
         return m_attributes.at(index.row());
     }

@@ -17,6 +17,11 @@
 
 #include "AutoTypeTest.h"
 
+AutoTypePlatformTest::AutoTypePlatformTest()
+    : m_executor(new AutoTypeExecutorTest(this))
+{
+}
+
 bool AutoTypePlatformTest::isAvailable()
 {
     return true;
@@ -29,7 +34,7 @@ QString AutoTypePlatformTest::keyToString(Qt::Key key)
 
 QStringList AutoTypePlatformTest::windowTitles()
 {
-    return QStringList();
+    return {};
 }
 
 WId AutoTypePlatformTest::activeWindow()
@@ -42,9 +47,9 @@ QString AutoTypePlatformTest::activeWindowTitle()
     return m_activeWindowTitle;
 }
 
-AutoTypeExecutor* AutoTypePlatformTest::createExecutor()
+AutoTypeExecutor& AutoTypePlatformTest::executor() const
 {
-    return new AutoTypeExecutorTest(this);
+    return *m_executor;
 }
 
 void AutoTypePlatformTest::setActiveWindowTitle(const QString& title)

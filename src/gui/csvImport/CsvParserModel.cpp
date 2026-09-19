@@ -30,9 +30,7 @@ CsvParserModel::CsvParserModel(QObject* parent)
 {
 }
 
-CsvParserModel::~CsvParserModel()
-{
-}
+CsvParserModel::~CsvParserModel() = default;
 
 CsvParser* CsvParserModel::parser()
 {
@@ -131,7 +129,7 @@ QVariant CsvParserModel::data(const QModelIndex& index, int role) const
             return m_parser->getCsvTable().at(index.row() + m_skipped).at(column);
         }
     }
-    return QVariant();
+    return {};
 }
 
 QVariant CsvParserModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -147,5 +145,5 @@ QVariant CsvParserModel::headerData(int section, Qt::Orientation orientation, in
             }
         }
     }
-    return QVariant();
+    return {};
 }

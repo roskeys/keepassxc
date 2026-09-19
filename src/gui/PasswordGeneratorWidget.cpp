@@ -77,14 +77,14 @@ PasswordGeneratorWidget::PasswordGeneratorWidget(QWidget* parent)
 
     connect(m_ui->editWordSeparator, SIGNAL(textChanged(QString)), SLOT(updateGenerator()));
     connect(m_ui->comboBoxWordList, SIGNAL(currentIndexChanged(int)), SLOT(updateGenerator()));
-    connect(m_ui->optionButtons, SIGNAL(buttonClicked(int)), SLOT(updateGenerator()));
+    connect(m_ui->optionButtons, SIGNAL(buttonClicked(QAbstractButton*)), SLOT(updateGenerator()));
     connect(m_ui->tabWidget, SIGNAL(currentChanged(int)), SLOT(updateGenerator()));
     connect(m_ui->wordCaseComboBox, SIGNAL(currentIndexChanged(int)), SLOT(updateGenerator()));
 
     // set font size of password quality, characters, and entropy labels dynamically to 80% of
     // the default font size, but make it no smaller than 8pt
     QFont defaultFont;
-    int smallerSize = static_cast<int>(defaultFont.pointSize() * 0.8f);
+    auto smallerSize = static_cast<int>(defaultFont.pointSize() * 0.8f);
     if (smallerSize >= 8) {
         defaultFont.setPointSize(smallerSize);
         m_ui->entropyLabel->setFont(defaultFont);

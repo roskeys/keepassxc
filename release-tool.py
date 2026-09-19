@@ -192,7 +192,7 @@ def _run(cmd, *args, cwd, path=None, env=None, input=None, capture_output=True, 
     if docker_image:
         cwd2 = Path(cwd or '.').absolute()
         docker_cmd = ['docker', 'run', '--rm', '--tty=true', f'--workdir={cwd2}', f'--user={os.getuid()}:{os.getgid()}']
-        docker_cmd.extend([f'--env={k}={v}' for k, v in env.items() if k in ['FORCE_COLOR', 'CC', 'CXX']])
+        docker_cmd.extend([f'--env={k}={v}' for k, v in env.items() if k in ['FORCE_COLOR', 'CC', 'CXX', 'QMAKE']])
         if path:
             docker_cmd.append(f'--env=PATH={path}')
         docker_cmd.append(f'--volume={cwd2}:{cwd2}:rw')
@@ -644,6 +644,8 @@ class Build(Command):
                             help='Build parallelism (default: %(default)s).')
         parser.add_argument('-y', '--yes', help='Bypass confirmation prompts.', action='store_true')
         parser.add_argument('--with-tests', help='Build and run tests.', action='store_true')
+        parser.add_argument('--minimal', help='Build with minimal feature set.', action='store_true')
+        parser.add_argument('--build-qt', help='Build Qt6 dependency.', action='store_true')
 
         if sys.platform == 'darwin':
             parser.add_argument('--macos-target', default=12, metavar='MACOSX_DEPLOYMENT_TARGET',
@@ -665,6 +667,7 @@ class Build(Command):
         elif sys.platform == 'win32':
             parser.add_argument('-p', '--platform-target', help='Build target platform (default: %(default)s).',
                                 choices=['amd64', 'arm64'], default='amd64')
+            parser.add_argument('--mingw', help='Build using MinGW-w64 toolchain.', action='store_true')
             parser.add_argument('--sign', help='Sign binaries prior to packaging.', action='store_true')
             parser.add_argument('--sign-identity', help='SHA1 fingerprint of the signing certificate.')
             parser.add_argument('--sign-timestamp-url', help='Timestamp URL for signing binaries.',
@@ -689,16 +692,19 @@ class Build(Command):
         tag_name = tag_name or version
         kwargs['with_tests'] = with_tests
         with_tests = 'ON' if with_tests else 'OFF'
+        minimal = 'ON' if kwargs['minimal'] else 'OFF'
         cmake_opts = [
-            '-DWITH_XC_ALL=ON',
             '-DCMAKE_BUILD_TYPE=Release',
             '-DCMAKE_INSTALL_PREFIX=' + kwargs['install_prefix'],
             '-DWITH_TESTS=' + with_tests,
             '-DWITH_GUI_TESTS=' + with_tests,
+            '-DKPXC_MINIMAL=' + minimal
         ]
 
         if not kwargs['use_system_deps'] and not kwargs.get('docker_image'):
             cmake_opts.append(f'-DCMAKE_TOOLCHAIN_FILE={self._get_vcpkg_toolchain_file()}')
+            if kwargs['build_qt']:
+                cmake_opts.append('-DWITH_BUILD_QT=ON')
 
         if snapshot:
             logger.info('Building a snapshot from HEAD.')
@@ -748,25 +754,30 @@ class Build(Command):
 
     # noinspection PyMethodMayBeStatic
     def build_windows(self, version, src_dir, output_dir, *, parallelism, cmake_opts, platform_target,
-                      sign, sign_identity, sign_timestamp_url, with_tests, **_):
-        # Check for required tools
-        if not _cmd_exists('candle.exe') or not _cmd_exists('light.exe') or not _cmd_exists('heat.exe'):
-            raise Error('WiX Toolset not found on the PATH (candle.exe, light.exe, heat.exe).')
-
+                      sign, sign_identity, sign_timestamp_url, with_tests, mingw, **_):
         # Setup build signing if requested
         if sign:
             cmake_opts.append(f'-DWITH_XC_CODESIGN_IDENTITY={sign_identity}')
-            cmake_opts.append(f'-WITH_XC_CODESIGN_TIMESTAMP_URL={sign_timestamp_url}')
+            cmake_opts.append(f'-DWITH_XC_CODESIGN_TIMESTAMP_URL={sign_timestamp_url}')
         # Use vcpkg for dependency deployment
         cmake_opts.append('-DX_VCPKG_APPLOCAL_DEPS_INSTALL=ON')
 
-        # Find Visual Studio and capture build environment
-        vs_env = _capture_vs_env(arch=platform_target)
+        if mingw:
+            vs_env = os.environ.copy()
+        else:
+            # Find Visual Studio and capture build environment
+            vs_env = _capture_vs_env(arch=platform_target)
 
         # Use vs_env to resolve common tools
         cmake_cmd = shutil.which('cmake', path=vs_env.get('PATH'))
         cpack_cmd = shutil.which('cpack', path=vs_env.get('PATH'))
         ctest_cmd = shutil.which('ctest', path=vs_env.get('PATH'))
+        
+        if not cmake_cmd or not cpack_cmd or not ctest_cmd:
+            raise Error('CMake tools (cmake, cpack, ctest) not found on PATH!')
+        if not _cmd_exists('candle.exe', path=vs_env.get('PATH')) or not _cmd_exists('light.exe', path=vs_env.get('PATH')) \
+            or not _cmd_exists('heat.exe', path=vs_env.get('PATH')):
+            raise Error('WiX Toolset (candle.exe, light.exe, heat.exe) not found on the PATH!')
 
         # Start the build
         with tempfile.TemporaryDirectory() as build_dir:
@@ -905,12 +916,15 @@ class Build(Command):
         executables = (install_prefix / 'bin').glob('keepassxc*')
         app_run = src_dir / 'share/linux/appimage-apprun.sh'
 
+        # Ensure QMAKE points to qmake6 for linuxdeploy-plugin-qt to find Qt6
+        env = {**os.environ, 'QMAKE': os.environ.get('QMAKE', 'qmake6')}
+
         logger.info('Building AppImage...')
         logger.debug('Running linuxdeploy...')
         _run(['linuxdeploy', '--plugin=qt', f'--appdir={app_dir}', f'--custom-apprun={app_run}',
               f'--desktop-file={desktop_file}', f'--icon-file={icon_file}',
               *[f'--executable={ex}' for ex in executables]],
-             cwd=build_dir, capture_output=False, path=env_path, **docker_args, docker_privileged=True)
+             cwd=build_dir, capture_output=False, path=env_path, env=env, **docker_args, docker_privileged=True)
 
         logger.debug('Running appimagetool...')
         appimage_name = f'KeePassXC-{version}-{platform_target}.AppImage'
@@ -918,7 +932,7 @@ class Build(Command):
         _run(['appimagetool', '--updateinformation=gh-releases-zsync|keepassxreboot|keepassxc|latest|' +
               f'KeePassXC-*-{platform_target}.AppImage.zsync',
               app_dir.as_posix(), (output_dir.absolute() / appimage_name).as_posix()],
-             cwd=build_dir, capture_output=False, path=env_path, **docker_args, docker_privileged=True)
+             cwd=build_dir, capture_output=False, path=env_path, env=env, **docker_args, docker_privileged=True)
         # Move appimage zsync file to output dir
         zsync_file = next(Path(build_dir).glob('*.AppImage.zsync'), None)
         if zsync_file and zsync_file.is_file():
@@ -972,6 +986,7 @@ class BuildSrc(Command):
             tmp_comp = tmp_export.with_suffix('.tar.xz')
             with lzma.open(tmp_comp, 'wb', preset=6) as f:
                 f.write(tmp_export.read_bytes())
+            output_file.parent.mkdir(parents=True, exist_ok=True)
             tmp_comp.rename(output_file)
 
 

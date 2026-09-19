@@ -23,20 +23,18 @@
 #include "BrowserEntrySaveDialog.h"
 #include "BrowserHost.h"
 #include "BrowserMessageBuilder.h"
-#include "BrowserSettings.h"
-#include "core/EntryAttributes.h"
-#include "core/Tools.h"
-#include "core/UrlTools.h"
-#include "gui/MainWindow.h"
-#include "gui/MessageBox.h"
-#include "gui/osutils/OSUtils.h"
-#ifdef WITH_XC_BROWSER_PASSKEYS
 #include "BrowserPasskeys.h"
 #include "BrowserPasskeysClient.h"
 #include "BrowserPasskeysConfirmationDialog.h"
+#include "BrowserSettings.h"
 #include "PasskeyUtils.h"
+#include "core/EntryAttributes.h"
+#include "core/Tools.h"
+#include "gui/MainWindow.h"
+#include "gui/MessageBox.h"
+#include "gui/UrlTools.h"
+#include "gui/osutils/OSUtils.h"
 #include "gui/passkeys/PasskeyImporter.h"
-#endif
 #ifdef Q_OS_MACOS
 #include "gui/osutils/macutils/MacUtils.h"
 #endif
@@ -57,11 +55,9 @@
 const QString BrowserService::KEEPASSXCBROWSER_NAME = QStringLiteral("KeePassXC-Browser Settings");
 const QString BrowserService::KEEPASSXCBROWSER_OLD_NAME = QStringLiteral("keepassxc-browser Settings");
 static const QString KEEPASSXCBROWSER_GROUP_NAME = QStringLiteral("KeePassXC-Browser Passwords");
-static int KEEPASSXCBROWSER_DEFAULT_ICON = 1;
-#ifdef WITH_XC_BROWSER_PASSKEYS
-static int KEEPASSXCBROWSER_PASSKEY_ICON = 13;
 static const QString PASSKEYS_DEFAULT_GROUP_NAME = QStringLiteral("KeePassXC-Browser Passkeys");
-#endif
+static int KEEPASSXCBROWSER_DEFAULT_ICON = 1;
+static int KEEPASSXCBROWSER_PASSKEY_ICON = 13;
 // These are for the settings and password conversion
 static const QString KEEPASSHTTP_NAME = QStringLiteral("KeePassHttp Settings");
 static const QString KEEPASSHTTP_GROUP_NAME = QStringLiteral("KeePassHttp Passwords");
@@ -324,11 +320,11 @@ QJsonObject BrowserService::createNewGroup(const QString& groupName, bool isPass
             newGroup->setName(groups[i]);
             newGroup->setUuid(QUuid::createUuid());
             newGroup->setParent(previousGroup);
-#ifdef WITH_XC_BROWSER_PASSKEYS
+
             if (isPasskeysGroup && i == groups.length() - 1) {
                 newGroup->setIcon(KEEPASSXCBROWSER_PASSKEY_ICON);
             }
-#endif
+
             name = newGroup->name();
             newGroup->setCustomDataTriState(BrowserService::OPTION_HIDE_ENTRY, Group::Disable);
             uuid = Tools::uuidToHex(newGroup->uuid());
@@ -604,7 +600,8 @@ QString BrowserService::storeKey(const QString& key)
             return {};
         }
 
-        contains = db->metadata()->customData()->contains(CustomData::BrowserKeyPrefix + id);
+        contains =
+            db->metadata()->customData()->contains(CustomData::getKeyWithPrefix(CustomData::BrowserKeyPrefix, id));
         if (contains) {
             dialogResult = MessageBox::warning(m_currentDatabaseWidget,
                                                tr("KeePassXC - Overwrite existing key?"),
@@ -617,8 +614,8 @@ QString BrowserService::storeKey(const QString& key)
     } while (contains && dialogResult == MessageBox::Cancel);
 
     hideWindow();
-    db->metadata()->customData()->set(CustomData::BrowserKeyPrefix + id, key);
-    db->metadata()->customData()->set(QString("%1%2").arg(CustomData::Created, id),
+    db->metadata()->customData()->set(CustomData::getKeyWithPrefix(CustomData::BrowserKeyPrefix, id), key);
+    db->metadata()->customData()->set(CustomData::getKeyWithPrefix(CustomData::Created, id),
                                       QLocale::system().toString(Clock::currentDateTime(), QLocale::ShortFormat));
     return id;
 }
@@ -630,10 +627,9 @@ QString BrowserService::getKey(const QString& id)
         return {};
     }
 
-    return db->metadata()->customData()->value(CustomData::BrowserKeyPrefix + id);
+    return db->metadata()->customData()->value(CustomData::getKeyWithPrefix(CustomData::BrowserKeyPrefix, id));
 }
 
-#ifdef WITH_XC_BROWSER_PASSKEYS
 // Passkey registration
 QJsonObject BrowserService::showPasskeysRegisterPrompt(const QJsonObject& publicKeyOptions,
                                                        const QString& origin,
@@ -676,6 +672,7 @@ QJsonObject BrowserService::showPasskeysRegisterPrompt(const QJsonObject& public
             browserPasskeys()->buildRegisterPublicKeyCredential(credentialCreationOptions);
         if (publicKeyCredentials.credentialId.isEmpty() || publicKeyCredentials.key.isEmpty()
             || publicKeyCredentials.response.isEmpty()) {
+            hideWindow();
             return getPasskeyError(ERROR_PASSKEYS_UNKNOWN_ERROR);
         }
 
@@ -697,6 +694,7 @@ QJsonObject BrowserService::showPasskeysRegisterPrompt(const QJsonObject& public
                                                                      tr("Register a new passkey to this entry:"),
                                                                      tr("Register"));
                 if (!result) {
+                    hideWindow();
                     return getPasskeyError(ERROR_PASSKEYS_REQUEST_CANCELED);
                 }
             } else {
@@ -873,7 +871,6 @@ void BrowserService::addPasskeyToEntry(Entry* entry,
 
     entry->endUpdate();
 }
-#endif
 
 void BrowserService::addEntry(const EntryParameters& entryParameters,
                               const QString& group,
@@ -1052,12 +1049,10 @@ QList<Entry*> BrowserService::searchEntries(const QSharedPointer<Database>& db,
                 continue;
             }
 
-#ifdef WITH_XC_BROWSER_PASSKEYS
             // With Passkeys, check for the Relying Party instead of URL
             if (passkey && entry->attributes()->value(EntryAttributes::KPEX_PASSKEY_RELYING_PARTY) != siteUrl) {
                 continue;
             }
-#endif
 
             // Additional URL check may have already inserted the entry to the list
             if (!entries.contains(entry)) {
@@ -1077,7 +1072,8 @@ QList<Entry*> BrowserService::searchEntries(const QString& siteUrl,
     // Check if database is connected with KeePassXC-Browser. If so, return browser key (otherwise empty)
     auto databaseConnected = [&](const QSharedPointer<Database>& db) {
         for (const StringPair& keyPair : keyList) {
-            QString key = db->metadata()->customData()->value(CustomData::BrowserKeyPrefix + keyPair.first);
+            const auto key = db->metadata()->customData()->value(
+                CustomData::getKeyWithPrefix(CustomData::BrowserKeyPrefix, keyPair.first));
             if (!key.isEmpty() && keyPair.second == key) {
                 return keyPair.first;
             }
@@ -1116,79 +1112,6 @@ QList<Entry*> BrowserService::searchEntries(const QString& siteUrl,
     } while (entries.isEmpty() && removeFirstDomain(hostname));
 
     return entries;
-}
-
-void BrowserService::convertAttributesToCustomData(QSharedPointer<Database> db)
-{
-    if (!db) {
-        return;
-    }
-
-    QList<Entry*> entries = db->rootGroup()->entriesRecursive();
-    QProgressDialog progress(tr("Converting attributes to custom data…"), tr("Abort"), 0, entries.count());
-    progress.setWindowModality(Qt::WindowModal);
-
-    int counter = 0;
-    int keyCounter = 0;
-    for (auto* entry : entries) {
-        if (progress.wasCanceled()) {
-            return;
-        }
-
-        if (moveSettingsToCustomData(entry, KEEPASSHTTP_NAME)) {
-            ++counter;
-        }
-
-        if (moveSettingsToCustomData(entry, KEEPASSXCBROWSER_OLD_NAME)) {
-            ++counter;
-        }
-
-        if (moveSettingsToCustomData(entry, KEEPASSXCBROWSER_NAME)) {
-            ++counter;
-        }
-
-        if (entry->title() == KEEPASSHTTP_NAME || entry->title().contains(KEEPASSXCBROWSER_NAME, Qt::CaseInsensitive)) {
-            keyCounter += moveKeysToCustomData(entry, db);
-            db->recycleEntry(entry);
-        }
-
-        progress.setValue(progress.value() + 1);
-    }
-    progress.reset();
-
-    if (counter > 0) {
-        MessageBox::information(nullptr,
-                                tr("KeePassXC: Converted KeePassHTTP attributes"),
-                                tr("Successfully converted attributes from %1 entry(s).\n"
-                                   "Moved %2 keys to custom data.",
-                                   "")
-                                    .arg(counter)
-                                    .arg(keyCounter),
-                                MessageBox::Ok);
-    } else if (counter == 0 && keyCounter > 0) {
-        MessageBox::information(nullptr,
-                                tr("KeePassXC: Converted KeePassHTTP attributes"),
-                                tr("Successfully moved %n keys to custom data.", "", keyCounter),
-                                MessageBox::Ok);
-    } else {
-        MessageBox::information(nullptr,
-                                tr("KeePassXC: No entry with KeePassHTTP attributes found!"),
-                                tr("The active database does not contain an entry with KeePassHTTP attributes."),
-                                MessageBox::Ok);
-    }
-
-    // Rename password groupName
-    Group* rootGroup = db->rootGroup();
-    if (!rootGroup) {
-        return;
-    }
-
-    for (auto* g : rootGroup->groupsRecursive(true)) {
-        if (g->name() == KEEPASSHTTP_GROUP_NAME) {
-            g->setName(KEEPASSXCBROWSER_GROUP_NAME);
-            break;
-        }
-    }
 }
 
 QString BrowserService::decodeCustomDataRestrictKey(const QString& key)
@@ -1469,7 +1392,6 @@ bool BrowserService::shouldIncludeEntry(Entry* entry,
     return false;
 }
 
-#ifdef WITH_XC_BROWSER_PASSKEYS
 // Returns all Passkey entries for the current Relying Party
 QList<Entry*> BrowserService::getPasskeyEntries(const QString& rpId, const StringPairList& keyList)
 {
@@ -1531,7 +1453,7 @@ bool BrowserService::isPasskeyCredentialExcluded(const QJsonArray& excludeCreden
 {
     QStringList allIds;
     for (const auto& cred : excludeCredentials) {
-        allIds << cred["id"].toString();
+        allIds << cred.toObject().value("id").toString();
     }
 
     const auto passkeyEntries = getPasskeyEntries(rpId, keyList);
@@ -1544,7 +1466,6 @@ QJsonObject BrowserService::getPasskeyError(int errorCode) const
 {
     return QJsonObject({{"errorCode", errorCode}});
 }
-#endif
 
 bool BrowserService::handleURL(const QString& entryUrl,
                                const QString& siteUrl,
@@ -1623,7 +1544,7 @@ bool BrowserService::handleURL(const QString& entryUrl,
     }
 
     // Match the base domain
-    if (urlTools()->getBaseDomainFromUrl(siteQUrl.host()) != urlTools()->getBaseDomainFromUrl(entryQUrl.host())) {
+    if (UrlTools::getBaseDomainFromUrl(siteQUrl.host()) != UrlTools::getBaseDomainFromUrl(entryQUrl.host())) {
         return false;
     }
 
@@ -1732,84 +1653,6 @@ QSharedPointer<Database> BrowserService::selectedDatabase()
     return getDatabase();
 }
 
-bool BrowserService::moveSettingsToCustomData(Entry* entry, const QString& name)
-{
-    if (entry->attributes()->contains(name)) {
-        QString attr = entry->attributes()->value(name);
-        entry->beginUpdate();
-        if (!attr.isEmpty()) {
-            entry->customData()->set(KEEPASSXCBROWSER_NAME, attr);
-        }
-        entry->attributes()->remove(name);
-        entry->endUpdate();
-        return true;
-    }
-    return false;
-}
-
-int BrowserService::moveKeysToCustomData(Entry* entry, QSharedPointer<Database> db)
-{
-    int keyCounter = 0;
-    for (const auto& key : entry->attributes()->keys()) {
-        if (key.contains(CustomData::BrowserLegacyKeyPrefix)) {
-            QString publicKey = key;
-            publicKey.remove(CustomData::BrowserLegacyKeyPrefix);
-
-            // Add key to database custom data
-            if (db && !db->metadata()->customData()->contains(CustomData::BrowserKeyPrefix + publicKey)) {
-                db->metadata()->customData()->set(CustomData::BrowserKeyPrefix + publicKey,
-                                                  entry->attributes()->value(key));
-                ++keyCounter;
-            }
-        }
-    }
-
-    return keyCounter;
-}
-
-bool BrowserService::checkLegacySettings(QSharedPointer<Database> db)
-{
-    if (!db || !browserSettings()->isEnabled() || browserSettings()->noMigrationPrompt()) {
-        return false;
-    }
-
-    bool legacySettingsFound = false;
-    QList<Entry*> entries = db->rootGroup()->entriesRecursive();
-    for (const auto& e : entries) {
-        if (e->isRecycled()) {
-            continue;
-        }
-
-        if ((e->attributes()->contains(KEEPASSHTTP_NAME) || e->attributes()->contains(KEEPASSXCBROWSER_NAME))
-            || (e->title() == KEEPASSHTTP_NAME || e->title().contains(KEEPASSXCBROWSER_NAME, Qt::CaseInsensitive))) {
-            legacySettingsFound = true;
-            break;
-        }
-    }
-
-    if (!legacySettingsFound) {
-        return false;
-    }
-
-    auto* checkbox = new QCheckBox(tr("Don't show this warning again"));
-    QObject::connect(checkbox, &QCheckBox::stateChanged, [&](int state) {
-        browserSettings()->setNoMigrationPrompt(static_cast<Qt::CheckState>(state) == Qt::CheckState::Checked);
-    });
-
-    auto dialogResult =
-        MessageBox::warning(nullptr,
-                            tr("KeePassXC: Legacy browser integration settings detected"),
-                            tr("Your KeePassXC-Browser settings need to be moved into the database settings.\n"
-                               "This is necessary to maintain your current browser connections.\n"
-                               "Would you like to migrate your existing settings now?"),
-                            MessageBox::Yes | MessageBox::No,
-                            MessageBox::NoButton,
-                            MessageBox::Raise,
-                            checkbox);
-
-    return dialogResult == MessageBox::Yes;
-}
-
 void BrowserService::hideWindow() const
 {
     if (m_prevWindowState == WindowState::Minimized) {
@@ -1819,7 +1662,11 @@ void BrowserService::hideWindow() const
         if (m_prevWindowState == WindowState::Hidden) {
             macUtils()->hideOwnWindow();
         } else {
-            macUtils()->raiseLastActiveWindow();
+            if (m_prevWindowState == WindowState::HiddenInSystemTray) {
+                getMainWindow()->hideWindow();
+            } else {
+                macUtils()->raiseLastActiveWindow();
+            }
         }
 #else
         if (m_prevWindowState == WindowState::Hidden) {
@@ -1842,6 +1689,8 @@ void BrowserService::raiseWindow(const bool force)
 
     if (macUtils()->isHidden()) {
         m_prevWindowState = WindowState::Hidden;
+    } else if (getMainWindow()->isMinimizedToSystemTray()) {
+        m_prevWindowState = WindowState::HiddenInSystemTray;
     }
     macUtils()->raiseOwnWindow();
     Tools::wait(500);
@@ -1865,6 +1714,8 @@ void BrowserService::updateWindowState()
 #ifdef Q_OS_MACOS
     if (macUtils()->isHidden()) {
         m_prevWindowState = WindowState::Hidden;
+    } else if (getMainWindow()->isMinimizedToSystemTray()) {
+        m_prevWindowState = WindowState::HiddenInSystemTray;
     }
 #else
     if (getMainWindow()->isHidden()) {
@@ -1893,11 +1744,6 @@ void BrowserService::databaseUnlocked(DatabaseWidget* dbWidget)
         QJsonObject msg;
         msg["action"] = QString("database-unlocked");
         m_browserHost->broadcastClientMessage(msg);
-
-        auto db = dbWidget->database();
-        if (checkLegacySettings(db)) {
-            convertAttributesToCustomData(db);
-        }
     }
 }
 
@@ -1935,7 +1781,7 @@ void BrowserService::processClientMessage(QLocalSocket* socket, const QJsonObjec
         m_browserClients.insert(clientID, QSharedPointer<BrowserAction>::create());
     }
 
-    auto& action = m_browserClients.value(clientID);
+    const auto& action = m_browserClients.value(clientID);
     auto response = action->processClientMessage(socket, message);
     m_browserHost->sendClientMessage(socket, response);
 }

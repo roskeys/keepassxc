@@ -79,23 +79,20 @@ private:
     QJsonObject handleSetLogin(const QJsonObject& json, const QString& action);
     QJsonObject handleLockDatabase(const QJsonObject& json, const QString& action);
     QJsonObject handleGetDatabaseGroups(const QJsonObject& json, const QString& action);
+    QJsonObject handleGetDatabaseEntries(const QJsonObject& json, const QString& action);
     QJsonObject handleCreateNewGroup(const QJsonObject& json, const QString& action);
     QJsonObject handleGetTotp(const QJsonObject& json, const QString& action);
     QJsonObject handleDeleteEntry(const QJsonObject& json, const QString& action);
     QJsonObject handleGlobalAutoType(const QJsonObject& json, const QString& action);
-#ifdef WITH_XC_BROWSER_PASSKEYS
     QJsonObject handlePasskeysGet(const QJsonObject& json, const QString& action);
     QJsonObject handlePasskeysRegister(const QJsonObject& json, const QString& action);
-#endif
 
-private:
     QJsonObject buildResponse(const QString& action, const QString& nonce, const Parameters& params = {});
     QJsonObject getErrorReply(const QString& action, const int errorCode) const;
     QJsonObject decryptMessage(const QString& message, const QString& nonce);
     BrowserRequest decodeRequest(const QJsonObject& json);
     StringPairList getConnectionKeys(const BrowserRequest& browserRequest);
 
-private:
     static const int MaxUrlLength;
 
     QString m_clientPublicKey;

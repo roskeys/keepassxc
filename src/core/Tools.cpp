@@ -1,11 +1,11 @@
 /*
- *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2017 Lennart Glauer <mail@lennart-glauer.de>
- *  Copyright (C) 2020 Giuseppe D'Angelo <dangelog@gmail.com>.
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2021 The Qt Company Ltd.
  *  Copyright (C) 2020 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com,
  *  author Giuseppe D'Angelo <giuseppe.dangelo@kdab.com>
- *  Copyright (C) 2021 The Qt Company Ltd.
- *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2020 Giuseppe D'Angelo <dangelog@gmail.com>
+ *  Copyright (C) 2017 Lennart Glauer <mail@lennart-glauer.de>
+ *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,9 +52,7 @@ namespace Tools
     {
         QString debugInfo = "KeePassXC - ";
         debugInfo.append(QObject::tr("Version %1").arg(KEEPASSXC_VERSION).append("\n"));
-#ifndef KEEPASSXC_BUILD_TYPE_RELEASE
         debugInfo.append(QObject::tr("Build Type: %1").arg(KEEPASSXC_BUILD_TYPE).append("\n"));
-#endif
 
         QString commitHash;
         if (!QString(GIT_HEAD).isEmpty()) {
@@ -64,9 +62,7 @@ namespace Tools
             debugInfo.append(QObject::tr("Revision: %1").arg(commitHash.left(7)).append("\n"));
         }
 
-#ifdef KEEPASSXC_DIST
         debugInfo.append(QObject::tr("Distribution: %1").arg(KEEPASSXC_DIST_TYPE).append("\n"));
-#endif
 
         // Qt related debugging information.
         debugInfo.append("\n");
@@ -87,34 +83,22 @@ namespace Tools
         debugInfo.append("\n\n");
 
         QString extensions;
-#ifdef WITH_XC_AUTOTYPE
         extensions += "\n- " + QObject::tr("Auto-Type");
-#endif
-#ifdef WITH_XC_BROWSER
-        extensions += "\n- " + QObject::tr("Browser Integration");
-#endif
-#ifdef WITH_XC_BROWSER_PASSKEYS
-        extensions += "\n- " + QObject::tr("Passkeys");
-#endif
-#ifdef WITH_XC_SSHAGENT
-        extensions += "\n- " + QObject::tr("SSH Agent");
-#endif
-#ifdef WITH_XC_KEESHARE
         extensions += "\n- " + QObject::tr("KeeShare");
-#endif
-#ifdef WITH_XC_YUBIKEY
-        extensions += "\n- " + QObject::tr("YubiKey");
-#endif
+        extensions += "\n- " + QObject::tr("Hardware Keys");
 #if defined(Q_OS_MACOS) || defined(Q_CC_MSVC)
         extensions += "\n- " + QObject::tr("Quick Unlock");
 #endif
-#ifdef WITH_XC_FDOSECRETS
+#ifdef KPXC_FEATURE_BROWSER
+        extensions += "\n- " + QObject::tr("Browser Integration");
+        extensions += "\n- " + QObject::tr("Passkeys");
+#endif
+#ifdef KPXC_FEATURE_SSHAGENT
+        extensions += "\n- " + QObject::tr("SSH Agent");
+#endif
+#ifdef KPXC_FEATURE_FDOSECRETS
         extensions += "\n- " + QObject::tr("Secret Service Integration");
 #endif
-
-        if (extensions.isEmpty()) {
-            extensions = " " + QObject::tr("None");
-        }
 
         debugInfo.append(QObject::tr("Enabled extensions:").append(extensions).append("\n"));
         return debugInfo;
@@ -221,11 +205,11 @@ namespace Tools
     bool isBase64(const QByteArray& ba)
     {
         constexpr auto pattern = R"(^(?:[a-z0-9+/]{4})*(?:[a-z0-9+/]{3}=|[a-z0-9+/]{2}==)?$)";
-        QRegExp regexp(pattern, Qt::CaseInsensitive, QRegExp::RegExp2);
+        QRegularExpression regexp(pattern, QRegularExpression::CaseInsensitiveOption);
 
         QString base64 = QString::fromLatin1(ba.constData(), ba.size());
 
-        return regexp.exactMatch(base64);
+        return regexp.match(base64).hasMatch();
     }
 
     bool isAsciiString(const QString& str)

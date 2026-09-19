@@ -117,6 +117,7 @@ const QJsonArray validPubKeyCredParams = {
 void TestPasskeys::initTestCase()
 {
     QVERIFY(Crypto::init());
+    QLocale::setDefault(QLocale::c());
 }
 
 void TestPasskeys::init()
@@ -283,22 +284,12 @@ void TestPasskeys::testCreatingAttestationObjectWithEC()
     const auto credentialPrivateKey = browserPasskeys()->buildCredentialPrivateKey(alg, testingVariables);
     auto result = browserPasskeys()->buildAttestationObject(
         credentialCreationOptions, "", id, credentialPrivateKey.cborEncodedPublicKey, testingVariables);
-    QCOMPARE(
-        result,
-        QString("\xA3"
-                "cfmtdnonegattStmt\xA0hauthDataX\xA4t\xA6\xEA\x92\x13\xC9\x9C/t\xB2$\x92\xB3 \xCF@&*\x94\xC1\xA9P\xA0"
-                "9\x7F)%\x0B`\x84\x1E\xF0]\x00\x00\x00\x00\xFD\xB1"
-                "A\xB2]\x84"
-                "D>\x8A"
-                "5F\x98\xC2\x05\xA5\x02\x00 \xCA\xBC\xC5'\x99pr\x94\xF0`\xC3\x9D])\xB1\x17\x96\xF9q\x84%\xA8\x13"
-                "3m\xB5?w\xEA\x05,\xEF\xA5\x01\x02\x03& \x01!X \x06\xEC\xAF"
-                "4[b\x91"
-                "am\x19Y\x03\xA6P*\xCA"
-                "1\xC4\x95\xA8i\xE5\xF0\x87\xE5\xD4\xB8"
-                "2\xCD\b\x85\xDD\"X \xE2\xEE\x7F\xE9\x0F\x0E\xE9\x1D\x07\x83J\x03\t\xDB"
-                "B$\xB1\x0B\xD3%\xFF\x18"
-                "2\xE1S\x99\xB7\x1D"
-                "B\x04\xE7\x83"));
+    QCOMPARE(result,
+             QByteArray::fromHex(
+                 "a363666d74646e6f6e656761747453746d74a068617574684461746158a474a6ea9213c99c2f74b22492b320cf40262a94c1a"
+                 "950a0397f29250b60841ef05d00000000fdb141b25d84443e8a354698c205a5020020cabcc52799707294f060c39d5d29b117"
+                 "96f9718425a813336db53f77ea052cefa501020326200121582006ecaf345b6291616d195903a6502aca31c495a869e5f087e"
+                 "5d4b832cd0885dd225820e2ee7fe90f0ee91d07834a0309db4224b10bd325ff1832e15399b71d4204e783"));
 
     // Double check that the result can be decoded
     BrowserCbor browserCbor;

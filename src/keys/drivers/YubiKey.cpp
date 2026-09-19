@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2014 Kyle Manna <kyle@kylemanna.com>
- *  Copyright (C) 2017-2021 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -90,7 +90,8 @@ void YubiKey::findValidKeysAsync()
     // Don't start another scan if we are already doing one
     if (!m_findingKeys) {
         m_findingKeys = true;
-        QtConcurrent::run([this] { emit detectComplete(findValidKeys()); });
+        auto future = QtConcurrent::run([this] { emit detectComplete(findValidKeys()); });
+        Q_UNUSED(future)
     }
 }
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ const char* TEST_BAD_HIBP_CONTENTS = "barf:nope\n";
 void TestHibp::initTestCase()
 {
     QVERIFY(Crypto::init());
+    QLocale::setDefault(QLocale::c());
 }
 
 void TestHibp::init()
@@ -89,22 +90,22 @@ void TestHibp::testPwned()
 
     Group* root = m_db->rootGroup();
 
-    Entry* entry1 = new Entry();
+    auto entry1 = new Entry();
     entry1->setPassword("foo");
     entry1->setGroup(root);
 
-    Entry* entry2 = new Entry();
+    auto entry2 = new Entry();
     entry2->setPassword("xyz");
     entry2->setGroup(root);
 
-    Entry* entry3 = new Entry();
+    auto entry3 = new Entry();
     entry3->setPassword("foo");
     m_db->recycleEntry(entry3);
 
-    Group* group1 = new Group();
+    auto group1 = new Group();
     group1->setParent(root);
 
-    Entry* entry4 = new Entry();
+    auto entry4 = new Entry();
     entry4->setPassword("bar");
     entry4->setGroup(group1);
 

@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2020 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -58,7 +58,8 @@ int main(int argc, char* argv[])
 void TestGuiBrowser::initTestCase()
 {
     QVERIFY(Crypto::init());
-    Config::createTempFileInstance();
+    // Create temporary config file
+    Config::createConfigFromFile(TemporaryFile::createTempConfigFile(), {});
     // Disable autosave so we can test the modified file indicator
     config()->set(Config::AutoSaveAfterEveryChange, false);
     config()->set(Config::AutoSaveOnExit, false);
@@ -72,6 +73,8 @@ void TestGuiBrowser::initTestCase()
     m_mainWindow.reset(new MainWindow());
     m_tabWidget = m_mainWindow->findChild<DatabaseTabWidget*>("tabWidget");
     m_mainWindow->show();
+
+    QLocale::setDefault(QLocale::c());
 }
 
 // Every test starts with opening the temp database
@@ -203,7 +206,6 @@ void TestGuiBrowser::testAdditionalURLs()
         QTest::mouseClick(addURLButton, Qt::LeftButton);
         QApplication::processEvents();
         QTest::keyClicks(urlList->focusWidget(), url);
-        QTest::keyClick(urlList->focusWidget(), Qt::Key_Enter);
     }
 
     // Check the values from attributesEdit

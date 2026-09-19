@@ -20,8 +20,8 @@
 
 #include "browser/BrowserService.h"
 #include "core/EntryAttributes.h"
-#include "core/UrlTools.h"
 #include "gui/Icons.h"
+#include "gui/UrlTools.h"
 #include "gui/styles/StateColorPalette.h"
 
 EntryURLModel::EntryURLModel(QObject* parent)
@@ -33,8 +33,6 @@ EntryURLModel::EntryURLModel(QObject* parent)
 
 void EntryURLModel::setEntryAttributes(EntryAttributes* entryAttributes)
 {
-    beginResetModel();
-
     if (m_entryAttributes) {
         m_entryAttributes->disconnect(this);
     }
@@ -50,9 +48,9 @@ void EntryURLModel::setEntryAttributes(EntryAttributes* entryAttributes)
         connect(m_entryAttributes, SIGNAL(renamed(QString,QString)), SLOT(updateAttributes()));
         connect(m_entryAttributes, SIGNAL(reset()), SLOT(updateAttributes()));
         // clang-format on
+    } else {
+        clear();
     }
-
-    endResetModel();
 }
 
 QVariant EntryURLModel::data(const QModelIndex& index, int role) const
@@ -67,14 +65,14 @@ QVariant EntryURLModel::data(const QModelIndex& index, int role) const
     }
 
     const auto value = m_entryAttributes->value(key);
-    const auto urlValid = urlTools()->isUrlValid(value, true);
+    const auto urlValid = UrlTools::isUrlValid(value, true);
 
     // Check for duplicate URLs in the attribute list. Excludes the current key/value from the comparison.
     auto customAttributeKeys = m_entryAttributes->customKeys().filter(EntryAttributes::AdditionalUrlAttribute);
     customAttributeKeys.removeOne(key);
 
     const auto duplicateUrl =
-        m_entryAttributes->values(customAttributeKeys).contains(value) || urlTools()->isUrlIdentical(value, m_entryUrl);
+        m_entryAttributes->values(customAttributeKeys).contains(value) || UrlTools::isUrlIdentical(value, m_entryUrl);
     if (role == Qt::BackgroundRole && (!urlValid || duplicateUrl)) {
         StateColorPalette statePalette;
         return statePalette.color(StateColorPalette::ColorRole::Error);

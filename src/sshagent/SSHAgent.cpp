@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2017 Toni Spets <toni.spets@iki.fi>
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,12 +21,12 @@
 #include "core/Config.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
+#include "crypto/Random.h"
 #include "sshagent/BinaryStream.h"
 #include "sshagent/KeeAgentSettings.h"
 
 #include <QFileInfo>
 #include <QLocalSocket>
-#include <QThread>
 
 #ifdef Q_OS_WIN
 #include <QtEndian>
@@ -145,10 +145,11 @@ bool SSHAgent::isAgentRunning() const
     QFileInfo socketFileInfo(socketPath());
     return !socketFileInfo.path().isEmpty() && socketFileInfo.exists();
 #else
+    const auto pathString = QString::fromLatin1(socketPath().toLatin1());
     if (usePageant() && useOpenSSH()) {
-        return (FindWindowA("Pageant", "Pageant") != nullptr) && WaitNamedPipe(socketPath().toLatin1().data(), 100);
+        return (FindWindowA("Pageant", "Pageant") != nullptr) && WaitNamedPipe(pathString.toStdWString().c_str(), 100);
     } else if (useOpenSSH()) {
-        return WaitNamedPipe(socketPath().toLatin1().data(), 100);
+        return WaitNamedPipe(pathString.toStdWString().c_str(), 100);
     } else if (usePageant()) {
         return (FindWindowA("Pageant", "Pageant") != nullptr);
     } else {
@@ -210,9 +211,7 @@ bool SSHAgent::sendMessagePageant(const QByteArray& in, QByteArray& out)
         return false;
     }
 
-    auto threadId = reinterpret_cast<qlonglong>(QThread::currentThreadId());
-    QByteArray mapName = (QString("SSHAgentRequest%1").arg(threadId, 8, 16, QChar('0'))).toLatin1();
-
+    QByteArray mapName = randomGen()->randomArray(16).toHex();
     HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, AGENT_MAX_MSGLEN, mapName.data());
 
     if (!handle) {
@@ -475,7 +474,7 @@ bool SSHAgent::listIdentities(QList<QSharedPointer<OpenSSHKey>>& list)
  * Check if this identity is loaded in the SSH Agent.
  *
  * @param key identity to remove
- * @param loaded is the key laoded
+ * @param loaded is the key loaded
  * @return true on success
  */
 bool SSHAgent::checkIdentity(const OpenSSHKey& key, bool& loaded)

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -49,7 +49,7 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow();
-    ~MainWindow();
+    ~MainWindow() override;
 
     QList<DatabaseWidget*> getOpenDatabases();
     void restoreConfigState();
@@ -91,6 +91,7 @@ public slots:
     void minimizeOrHide();
     void toggleWindow();
     void bringToFront();
+    bool isMinimizedToSystemTray();
     void closeAllDatabases();
     void lockAllDatabases();
     void closeModalWindow();
@@ -127,6 +128,7 @@ private slots:
     void switchToNewDatabase();
     void switchToOpenDatabase();
     void switchToDatabaseFile(const QString& file);
+    void updateRemoteSyncMenuEntries();
     void databaseStatusChanged(DatabaseWidget* dbWidget);
     void databaseTabChanged(int tabIndex);
     void openRecentDatabase(QAction* action);
@@ -151,11 +153,11 @@ private slots:
     void updateProgressBar(int percentage, QString message);
     void updateEntryCountLabel();
     void focusSearchWidget();
+    void enableMenuAndToolbar();
+    void disableMenuAndToolbar();
     void clearSSHAgent();
 
 private:
-    static void setShortcut(QAction* action, QKeySequence::StandardKey standard, int fallback = 0);
-
     static const QString BaseWindowTitle;
 
     void saveWindowInformation();
@@ -169,6 +171,7 @@ private:
     void dropEvent(QDropEvent* event) override;
 
     void initViewMenu();
+    void initActionCollection();
 
     const QScopedPointer<Ui::MainWindow> m_ui;
     SignalMultiplexer m_actionMultiplexer;
@@ -180,7 +183,6 @@ private:
     QPointer<QActionGroup> m_copyAdditionalAttributeActions;
     QPointer<QActionGroup> m_setTagsMenuActions;
     QPointer<InactivityTimer> m_inactivityTimer;
-    QPointer<InactivityTimer> m_touchIDinactivityTimer;
     int m_countDefaultAttributes;
     QPointer<QSystemTrayIcon> m_trayIcon;
     QPointer<ScreenLockListener> m_screenLockListener;
@@ -198,6 +200,7 @@ private:
     bool m_contextMenuFocusLock = false;
     bool m_showToolbarSeparator = false;
     bool m_allowScreenCapture = false;
+    bool m_minimizedToSystemTray = false;
     qint64 m_lastFocusOutTime = 0;
     qint64 m_lastShowTime = 0;
     QTimer m_updateCheckTimer;

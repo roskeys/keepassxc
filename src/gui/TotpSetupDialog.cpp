@@ -29,11 +29,7 @@ TotpSetupDialog::TotpSetupDialog(QWidget* parent, Entry* entry)
 {
     m_ui->setupUi(this);
     setAttribute(Qt::WA_DeleteOnClose);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
-#else
-    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-#endif
     setFixedSize(sizeHint());
 
     connect(m_ui->buttonBox, SIGNAL(rejected()), SLOT(close()));
@@ -43,9 +39,7 @@ TotpSetupDialog::TotpSetupDialog(QWidget* parent, Entry* entry)
     init();
 }
 
-TotpSetupDialog::~TotpSetupDialog()
-{
-}
+TotpSetupDialog::~TotpSetupDialog() = default;
 
 void TotpSetupDialog::saveSettings()
 {

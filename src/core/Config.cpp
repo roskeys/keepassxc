@@ -28,6 +28,8 @@
 #include <QStandardPaths>
 #include <QTemporaryFile>
 
+#include <algorithm>
+
 #define CONFIG_VERSION 2
 #define QS QStringLiteral
 
@@ -81,6 +83,11 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::AutoTypeHideExpiredEntry,{QS("AutoTypeHideExpiredEntry"), Roaming, false}},
     {Config::AutoTypeDialogSortColumn,{QS("AutoTypeDialogSortColumn"), Roaming, 0}},
     {Config::AutoTypeDialogSortOrder,{QS("AutoTypeDialogSortOrder"), Roaming, Qt::AscendingOrder}},
+    {Config::AutoTypeDesktopPortalPersistConnection,{QS("AutoTypeDesktopPortalPersistConnection"), Roaming, false}},
+    {Config::AutoTypeDesktopPortalUseClipboard,{QS("AutoTypeDesktopPortalUseClipboard"), Roaming, false}},
+    {Config::AutoTypeDesktopPortalPersistMode,{QS("AutoTypeDesktopPortalPersistMode"), Roaming, 1}},
+    {Config::AutoTypeDesktopPortalRestoreToken,{QS("AutoTypeDesktopPortalRestoreToken"), Local, ""}},
+    {Config::AutoTypePreferDesktopPortals,{QS("AutoTypePreferDesktopPortals"), Roaming, false}},
     {Config::GlobalAutoTypeKey,{QS("GlobalAutoTypeKey"), Roaming, 0}},
     {Config::GlobalAutoTypeModifiers,{QS("GlobalAutoTypeModifiers"), Roaming, 0}},
     {Config::GlobalAutoTypeRetypeTime,{QS("GlobalAutoTypeRetypeTime"), Roaming, 15}},
@@ -123,6 +130,7 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::GUI_ShowExpiredEntriesOnDatabaseUnlock, {QS("GUI/ShowExpiredEntriesOnDatabaseUnlock"), Roaming, true}},
     {Config::GUI_ShowExpiredEntriesOnDatabaseUnlockOffsetDays, {QS("GUI/ShowExpiredEntriesOnDatabaseUnlockOffsetDays"), Roaming, 3}},
     {Config::GUI_FontSizeOffset, {QS("GUI/FontSizeOffset"), Local, 0}},
+    {Config::GUI_XDPGlobalShortcutsConfigured, {QS("GUI/XDPGlobalShortcutsConfigured"), Local, false}},
 
     {Config::GUI_MainWindowGeometry, {QS("GUI/MainWindowGeometry"), Local, {}}},
     {Config::GUI_MainWindowState, {QS("GUI/MainWindowState"), Local, {}}},
@@ -167,6 +175,7 @@ static const QHash<Config::ConfigKey, ConfigDirective> configStrings = {
     {Config::Browser_UseCustomProxy, {QS("Browser/UseCustomProxy"), Roaming, false}},
     {Config::Browser_CustomProxyLocation, {QS("Browser/CustomProxyLocation"), Roaming, {}}},
     {Config::Browser_UpdateBinaryPath, {QS("Browser/UpdateBinaryPath"), Roaming, true}},
+    {Config::Browser_AllowGetDatabaseEntriesRequest, {QS("Browser/AllowGetDatabaseEntriesRequest"), Roaming, false}},
     {Config::Browser_AllowExpiredCredentials, {QS("Browser/AllowExpiredCredentials"), Roaming, false}},
     {Config::Browser_AlwaysAllowAccess, {QS("Browser/AlwaysAllowAccess"), Roaming, false}},
     {Config::Browser_AlwaysAllowUpdate, {QS("Browser/AlwaysAllowUpdate"), Roaming, false}},
@@ -318,20 +327,13 @@ bool Config::importSettings(const QString& fileName)
         return false;
     }
 
-    // Only import valid roaming settings
-    auto isValidSetting = [](const QString& key) {
-        for (const auto& value : configStrings.values()) {
-            if (value.type == ConfigType::Roaming && value.name == key) {
-                return true;
-            }
-        }
-        return false;
-    };
-
     // Clear existing settings and set valid items
     m_settings->clear();
     for (const auto& key : settings.allKeys()) {
-        if (isValidSetting(key)) {
+        // Only import valid roaming settings
+        if (std::any_of(configStrings.cbegin(), configStrings.cend(), [&key](const ConfigDirective& directive) -> bool {
+                return directive.type == ConfigType::Roaming && directive.name == key;
+            })) {
             m_settings->setValue(key, settings.value(key));
         }
     }
@@ -420,8 +422,9 @@ static const QHash<QString, Config::ConfigKey> deprecationMap = {
     {QS("UseTouchID"), Config::Deleted},
     {QS("Security/ResetTouchId"), Config::Deleted},
     {QS("Security/ResetTouchIdTimeout"), Config::Deleted},
+    {QS("Security/ResetTouchIdScreenlock"), Config::Deleted},
 
-    // 2.7.8
+    // 2.8.0
     {QS("GUI/AdvancedSettings"), Config::Deleted},
     {QS("Security/PasswordsRepeatVisible"), Config::Deleted}};
 
@@ -517,9 +520,7 @@ Config::Config(QObject* parent)
     init(configFiles.first, configFiles.second);
 }
 
-Config::~Config()
-{
-}
+Config::~Config() = default;
 
 void Config::init(const QString& configFileName, const QString& localConfigFileName)
 {
@@ -532,6 +533,28 @@ void Config::init(const QString& configFileName, const QString& localConfigFileN
         QFile::remove(localConfigFileName);
         QDir().rmdir(QFileInfo(localConfigFileName).absolutePath());
     }
+
+#if defined(Q_OS_LINUX)
+    // Upgrade from previous KeePassXC version which stores its config
+    // in ~/.cache on Linux instead of ~/.local/state.
+    // Move file to correct location before continuing.
+    if (!QFile::exists(localConfigFileName)) {
+        QString oldLocalConfigPath =
+            QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + "/keepassxc";
+        QString suffix;
+#ifdef QT_DEBUG
+        suffix = "_debug";
+#endif
+        oldLocalConfigPath += QString("/keepassxc%1.ini").arg(suffix);
+        oldLocalConfigPath = QDir::toNativeSeparators(oldLocalConfigPath);
+        if (QFile::exists(oldLocalConfigPath)) {
+            QDir().mkpath(QFileInfo(localConfigFileName).absolutePath());
+            QFile::copy(oldLocalConfigPath, localConfigFileName);
+            QFile::remove(oldLocalConfigPath);
+            QDir().rmdir(QFileInfo(oldLocalConfigPath).absolutePath());
+        }
+    }
+#endif
 
     m_settings.reset(new QSettings(configFileName, QSettings::IniFormat));
     if (!localConfigFileName.isEmpty() && configFileName != localConfigFileName) {
@@ -561,7 +584,16 @@ QPair<QString, QString> Config::defaultConfigFiles()
 #else
     // On case-sensitive Operating Systems, force use of lowercase app directories
     configPath = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/keepassxc";
-    localConfigPath = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation) + "/keepassxc";
+    // Qt does not support XDG_STATE_HOME yet, change this once XDG_STATE_HOME is added
+    QString xdgStateHome = QFile::decodeName(qgetenv("XDG_STATE_HOME"));
+    if (!xdgStateHome.startsWith(u'/')) {
+        xdgStateHome.clear(); // spec says relative paths should be ignored
+    }
+    if (xdgStateHome.isEmpty()) {
+        xdgStateHome = QDir::homePath() + "/.local/state";
+    }
+
+    localConfigPath = xdgStateHome + "/keepassxc";
 #endif
 
     QString suffix;
@@ -601,19 +633,6 @@ void Config::createConfigFromFile(const QString& configFileName, const QString& 
                             qApp);
 }
 
-void Config::createTempFileInstance()
-{
-    if (m_instance) {
-        delete m_instance;
-    }
-    auto* tmpFile = new QTemporaryFile();
-    bool openResult = tmpFile->open();
-    Q_ASSERT(openResult);
-    Q_UNUSED(openResult);
-    m_instance = new Config(tmpFile->fileName(), "", qApp);
-    tmpFile->setParent(m_instance);
-}
-
 bool Config::isPortable()
 {
 #ifdef Q_OS_WIN
@@ -633,6 +652,30 @@ bool Config::isPortable()
 QString Config::portableConfigDir()
 {
     return QCoreApplication::applicationDirPath().append("/config");
+}
+
+QList<Config::ShortcutEntry> Config::getShortcuts() const
+{
+    m_settings->beginGroup("Shortcuts");
+    const auto keys = m_settings->childKeys();
+    QList<ShortcutEntry> ret;
+    ret.reserve(keys.size());
+    for (const auto& key : keys) {
+        const auto shortcut = m_settings->value(key).toString();
+        ret.push_back(ShortcutEntry{key, shortcut});
+    }
+    m_settings->endGroup();
+    return ret;
+}
+
+void Config::setShortcuts(const QList<ShortcutEntry>& shortcuts)
+{
+    m_settings->beginGroup("Shortcuts");
+    m_settings->remove(""); // clear previous
+    for (const auto& shortcutEntry : shortcuts) {
+        m_settings->setValue(shortcutEntry.name, shortcutEntry.shortcut);
+    }
+    m_settings->endGroup();
 }
 
 #undef QS

@@ -1,5 +1,5 @@
 # Running macdeployqt on a POST_BUILD copied binaries is pointless when using CPack because
-# the copied binaries will be overriden by the corresponding install(TARGETS) commands.
+# the copied binaries will be overridden by the corresponding install(TARGETS) commands.
 # That's why we run macdeployqt using install(CODE) on the already installed binaries.
 # The precondition is that all install(TARGETS) calls have to be called before this function is
 # called.
@@ -36,7 +36,7 @@ function(kpxc_run_macdeployqt_at_install_time)
     endif()
 
     set(COMMAND_ARGS
-        ${MACDEPLOYQT_EXE}
+        ${DEPLOYQT_EXE}
         ${APP_BUNDLE_PATH}
 
         # Adjusts dependency rpaths of extra binaries

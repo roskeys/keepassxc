@@ -65,6 +65,7 @@ parts:
       - libxtst-dev
       - asciidoctor
       - libfreetype-dev
+      - libkeyutils-dev
     stage-packages:
       - dbus
       - libbotan-2-19
@@ -76,6 +77,7 @@ parts:
       - libxtst6
       - libfreetype6
       - xclip
+      - libkeyutils1
 lint:
   ignore:
     - library:

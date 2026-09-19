@@ -18,7 +18,7 @@
 
 #include "AutoTypeMac.h"
 #include "core/Tools.h"
-#include "gui/osutils/macutils/MacUtils.h"
+#include "gui/osutils/OSUtils.h"
 #include "gui/MessageBox.h"
 
 #include <ApplicationServices/ApplicationServices.h>
@@ -28,6 +28,7 @@
 AutoTypePlatformMac::AutoTypePlatformMac()
 {
     MessageBox::initializeButtonDefs();
+    m_executor = new AutoTypeExecutorMac(this);
 }
 
 /**
@@ -124,9 +125,9 @@ QString AutoTypePlatformMac::activeWindowTitle()
     return title;
 }
 
-AutoTypeExecutor* AutoTypePlatformMac::createExecutor()
+AutoTypeExecutor& AutoTypePlatformMac::executor() const
 {
-    return new AutoTypeExecutorMac(this);
+    return *m_executor;
 }
 
 //
@@ -248,6 +249,10 @@ AutoTypeAction::Result AutoTypeExecutorMac::execType(const AutoTypeKey* action)
             // If we have modifiers set than we intend to send a key sequence
             // convert to uppercase to align with Qt Key mappings
             int ch = action->character.toUpper().toLatin1();
+            m_platform->sendKey(static_cast<Qt::Key>(ch), true, action->modifiers);
+            m_platform->sendKey(static_cast<Qt::Key>(ch), false, action->modifiers);
+        } else if (mode == Mode::VIRTUAL) {
+            int ch = action->character.toLatin1();
             m_platform->sendKey(static_cast<Qt::Key>(ch), true, action->modifiers);
             m_platform->sendKey(static_cast<Qt::Key>(ch), false, action->modifiers);
         } else {

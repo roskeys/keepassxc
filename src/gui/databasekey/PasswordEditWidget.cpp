@@ -32,9 +32,7 @@ PasswordEditWidget::PasswordEditWidget(QWidget* parent)
     connect(this, &PasswordEditWidget::editCanceled, this, [this] { setPassword({}); });
 }
 
-PasswordEditWidget::~PasswordEditWidget()
-{
-}
+PasswordEditWidget::~PasswordEditWidget() = default;
 
 bool PasswordEditWidget::addToCompositeKey(QSharedPointer<CompositeKey> key)
 {

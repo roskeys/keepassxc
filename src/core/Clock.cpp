@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2018 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,8 +32,7 @@ QDateTime Clock::currentDateTime()
 
 uint Clock::currentSecondsSinceEpoch()
 {
-    // TODO: change to toSecsSinceEpoch() when min Qt >= 5.8
-    return instance().currentDateTimeImpl().toTime_t();
+    return instance().currentDateTimeImpl().toSecsSinceEpoch();
 }
 
 qint64 Clock::currentMilliSecondsSinceEpoch()
@@ -52,12 +51,12 @@ QDateTime Clock::serialized(const QDateTime& dateTime)
 
 QDateTime Clock::datetimeUtc(int year, int month, int day, int hour, int min, int second)
 {
-    return QDateTime(QDate(year, month, day), QTime(hour, min, second), Qt::UTC);
+    return {QDate(year, month, day), QTime(hour, min, second), Qt::UTC};
 }
 
 QDateTime Clock::datetime(int year, int month, int day, int hour, int min, int second)
 {
-    return QDateTime(QDate(year, month, day), QTime(hour, min, second), Qt::LocalTime);
+    return {QDate(year, month, day), QTime(hour, min, second), Qt::LocalTime};
 }
 
 QDateTime Clock::datetimeUtc(qint64 msecSinceEpoch)
@@ -88,9 +87,7 @@ QString Clock::toString(const QDateTime& dateTime)
 
 Clock::~Clock() = default;
 
-Clock::Clock()
-{
-}
+Clock::Clock() = default;
 
 QDateTime Clock::currentDateTimeUtcImpl() const
 {

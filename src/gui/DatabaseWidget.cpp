@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
+ * Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  * Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,6 +32,7 @@
 #include <QTextEdit>
 
 #include "autotype/AutoType.h"
+#include "core/AsyncTask.h"
 #include "core/EntrySearcher.h"
 #include "core/Merger.h"
 #include "core/Tools.h"
@@ -56,20 +57,22 @@
 #include "gui/tag/TagView.h"
 #include "gui/widgets/ElidedLabel.h"
 #include "keeshare/KeeShare.h"
-
-#ifdef WITH_XC_NETWORKING
-#include "gui/IconDownloaderDialog.h"
-#endif
-
-#ifdef WITH_XC_SSHAGENT
-#include "sshagent/SSHAgent.h"
-#endif
+#include "remote/RemoteHandler.h"
+#include "remote/RemoteSettings.h"
 
 #ifdef WITH_XC_REMOTESYNC
 #include "remotesync/RemoteSyncManager.h"
 #endif
 
-#ifdef WITH_XC_BROWSER_PASSKEYS
+#ifdef KPXC_FEATURE_NETWORK
+#include "gui/IconDownloaderDialog.h"
+#endif
+
+#ifdef KPXC_FEATURE_SSHAGENT
+#include "sshagent/SSHAgent.h"
+#endif
+
+#ifdef KPXC_FEATURE_BROWSER
 #include "gui/passkeys/PasskeyImporter.h"
 #endif
 
@@ -93,6 +96,7 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     , m_groupView(new GroupView(m_db.data(), this))
     , m_tagView(new TagView(this))
     , m_saveAttempts(0)
+    , m_remoteSettings(new RemoteSettings(m_db, this))
     , m_entrySearcher(new EntrySearcher(false))
 {
     Q_ASSERT(m_db);
@@ -125,7 +129,7 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     tagsWidget->setLayout(tagsLayout);
     tagsLayout->addWidget(tagsTitle);
     tagsLayout->addWidget(m_tagView);
-    tagsLayout->setMargin(0);
+    tagsLayout->setContentsMargins(0, 0, 0, 0);
 
     m_groupSplitter->setOrientation(Qt::Vertical);
     m_groupSplitter->setChildrenCollapsible(true);
@@ -139,11 +143,9 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
 
     auto rightHandSideWidget = new QWidget(m_mainSplitter);
     auto rightHandSideVBox = new QVBoxLayout();
-    rightHandSideVBox->setMargin(0);
+    rightHandSideVBox->setContentsMargins(0, 0, 0, 0);
     rightHandSideVBox->addWidget(m_searchingLabel);
-#ifdef WITH_XC_KEESHARE
     rightHandSideVBox->addWidget(m_shareLabel);
-#endif
     rightHandSideVBox->addWidget(m_previewSplitter);
     rightHandSideWidget->setLayout(rightHandSideVBox);
     m_entryView = new EntryView(rightHandSideWidget);
@@ -173,12 +175,10 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
     m_searchingLabel->setAlignment(Qt::AlignCenter);
     m_searchingLabel->setVisible(false);
 
-#ifdef WITH_XC_KEESHARE
     m_shareLabel->setObjectName("KeeShareBanner");
     m_shareLabel->setRawText(tr("Shared group…"));
     m_shareLabel->setAlignment(Qt::AlignCenter);
     m_shareLabel->setVisible(false);
-#endif
 
     m_previewView->setObjectName("previewWidget");
     m_previewView->hide();
@@ -249,11 +249,9 @@ DatabaseWidget::DatabaseWidget(QSharedPointer<Database> db, QWidget* parent)
 
     m_searchLimitGroup = config()->get(Config::SearchLimitGroup).toBool();
 
-#ifdef WITH_XC_KEESHARE
     // We need to reregister the database to allow exports
     // from a newly created database
     KeeShare::instance()->connectDatabase(m_db, {});
-#endif
 
     if (m_db->isInitialized()) {
         switchToMainView();
@@ -505,6 +503,7 @@ void DatabaseWidget::replaceDatabase(QSharedPointer<Database> db)
     connectDatabaseSignals();
     m_groupView->changeDatabase(m_db);
     m_tagView->setDatabase(m_db);
+    m_remoteSettings->setDatabase(m_db);
 
     // Restore the new parent group pointer, if not found default to the root group
     // this prevents data loss when merging a database while creating a new entry
@@ -517,12 +516,7 @@ void DatabaseWidget::replaceDatabase(QSharedPointer<Database> db)
 
     emit databaseReplaced(oldDb, m_db);
 
-#if defined(WITH_XC_KEESHARE)
     KeeShare::instance()->connectDatabase(m_db, oldDb);
-#else
-    // Keep the instance active till the end of this function
-    Q_UNUSED(oldDb);
-#endif
 
 #if defined(WITH_XC_REMOTESYNC)
     if (!m_remoteSyncManager) {
@@ -620,6 +614,11 @@ void DatabaseWidget::expireSelectedEntries()
 
 void DatabaseWidget::deleteSelectedEntries()
 {
+    // Prevent deletion when a modal dialog (e.g., file save dialog) is active
+    if (QApplication::activeModalWidget()) {
+        return;
+    }
+
     const QModelIndexList selected = m_entryView->selectionModel()->selectedRows();
     if (selected.isEmpty()) {
         return;
@@ -855,7 +854,7 @@ void DatabaseWidget::setClipboardTextAndMinimize(const QString& text)
     }
 }
 
-#ifdef WITH_XC_SSHAGENT
+#ifdef KPXC_FEATURE_SSHAGENT
 void DatabaseWidget::addToAgent()
 {
     Entry* currentEntry = m_entryView->currentEntry();
@@ -976,7 +975,7 @@ void DatabaseWidget::openUrl()
 
 void DatabaseWidget::downloadSelectedFavicons()
 {
-#ifdef WITH_XC_NETWORKING
+#ifdef KPXC_FEATURE_NETWORK
     QList<Entry*> selectedEntries;
     for (const auto& index : m_entryView->selectionModel()->selectedRows()) {
         selectedEntries.append(m_entryView->entryFromIndex(index));
@@ -989,7 +988,7 @@ void DatabaseWidget::downloadSelectedFavicons()
 
 void DatabaseWidget::downloadAllFavicons()
 {
-#ifdef WITH_XC_NETWORKING
+#ifdef KPXC_FEATURE_NETWORK
     auto currentGroup = m_groupView->currentGroup();
     if (currentGroup) {
         performIconDownloads(currentGroup->entries());
@@ -999,7 +998,7 @@ void DatabaseWidget::downloadAllFavicons()
 
 void DatabaseWidget::downloadFaviconInBackground(Entry* entry)
 {
-#ifdef WITH_XC_NETWORKING
+#ifdef KPXC_FEATURE_NETWORK
     performIconDownloads({entry}, true, true);
 #else
     Q_UNUSED(entry);
@@ -1008,7 +1007,7 @@ void DatabaseWidget::downloadFaviconInBackground(Entry* entry)
 
 void DatabaseWidget::performIconDownloads(const QList<Entry*>& entries, bool force, bool downloadInBackground)
 {
-#ifdef WITH_XC_NETWORKING
+#ifdef KPXC_FEATURE_NETWORK
     auto* iconDownloaderDialog = new IconDownloaderDialog(this);
     connect(this, SIGNAL(databaseLockRequested()), iconDownloaderDialog, SLOT(close()));
 
@@ -1038,7 +1037,8 @@ void DatabaseWidget::openUrlForEntry(Entry* entry)
 
         // otherwise ask user
         if (!launch && cmdString.length() > 6) {
-            QString cmdTruncated = entry->resolveMultiplePlaceholders(entry->maskPasswordPlaceholders(entry->url()));
+            QString cmdTruncated =
+                entry->resolveMultiplePlaceholders(EntryPlaceholders::maskPasswordPlaceholders(entry->url()));
             cmdTruncated = cmdTruncated.mid(6);
             if (cmdTruncated.length() > 400) {
                 cmdTruncated = cmdTruncated.left(400) + " […]";
@@ -1051,7 +1051,7 @@ void DatabaseWidget::openUrlForEntry(Entry* entry)
                                this);
             msgbox.setDefaultButton(QMessageBox::No);
 
-            QCheckBox* checkbox = new QCheckBox(tr("Remember my choice"), &msgbox);
+            auto checkbox = new QCheckBox(tr("Remember my choice"), &msgbox);
             msgbox.setCheckBox(checkbox);
             bool remember = false;
             QObject::connect(checkbox, &QCheckBox::stateChanged, [&](int state) {
@@ -1070,15 +1070,11 @@ void DatabaseWidget::openUrlForEntry(Entry* entry)
 
         if (launch) {
             const QString cmd = cmdString.mid(6);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
             QStringList cmdList = QProcess::splitCommand(cmd);
             if (!cmdList.isEmpty()) {
                 const QString program = cmdList.takeFirst();
                 QProcess::startDetached(program, cmdList);
             }
-#else
-            QProcess::startDetached(cmd);
-#endif
 
             if (config()->get(Config::MinimizeOnOpenUrl).toBool()) {
                 getMainWindow()->minimizeOrHide();
@@ -1139,6 +1135,11 @@ void DatabaseWidget::cloneGroup()
 
 void DatabaseWidget::deleteGroup()
 {
+    // Prevent deletion when a modal dialog is active
+    if (QApplication::activeModalWidget()) {
+        return;
+    }
+
     Group* currentGroup = m_groupView->currentGroup();
     Q_ASSERT(currentGroup && canDeleteCurrentGroup());
     if (!currentGroup || !canDeleteCurrentGroup()) {
@@ -1180,6 +1181,87 @@ int DatabaseWidget::addChildWidget(QWidget* w)
     int index = QStackedWidget::addWidget(w);
     adjustSize();
     return index;
+}
+
+void DatabaseWidget::syncWithRemote(const RemoteParams* params)
+{
+    setDisabled(true);
+    emit databaseSyncInProgress();
+
+    QScopedPointer<RemoteHandler> remoteHandler(new RemoteHandler(this));
+    RemoteHandler::RemoteResult result;
+    result.success = false;
+    result.errorMessage = tr("Remote Sync did not contain any download or upload commands.");
+
+    // Download the database
+    if (!params->downloadCommand.isEmpty()) {
+        emit updateSyncProgress(25, tr("Downloading..."));
+        // Start a download first then merge and upload in the callback
+        result = remoteHandler->download(params);
+        if (result.success) {
+            QString error;
+            QSharedPointer<Database> remoteDb = QSharedPointer<Database>::create();
+            if (!remoteDb->open(result.filePath, m_db->key(), &error)) {
+                // Failed to open downloaded remote database with same key
+                // Unlock downloaded remote database via dialog
+                syncDatabaseWithLockedDatabase(result.filePath, params);
+                return;
+            }
+            remoteDb->markAsTemporaryDatabase();
+            if (!syncWithDatabase(remoteDb, error)) {
+                // Something failed during the sync process
+                result.success = false;
+                result.errorMessage = error;
+            }
+        }
+    }
+
+    uploadAndFinishSync(params, result);
+}
+
+void DatabaseWidget::syncDatabaseWithLockedDatabase(const QString& filePath, const RemoteParams* params)
+{
+    // disconnect any previously added slots to these signal
+    disconnect(this, &DatabaseWidget::databaseSyncUnlocked, nullptr, nullptr);
+    disconnect(this, &DatabaseWidget::databaseSyncUnlockFailed, nullptr, nullptr);
+
+    connect(this, &DatabaseWidget::databaseSyncUnlocked, [this, params](const RemoteHandler::RemoteResult& result) {
+        uploadAndFinishSync(params, result);
+    });
+    connect(this, &DatabaseWidget::databaseSyncUnlockFailed, [this, params](const RemoteHandler::RemoteResult& result) {
+        finishSync(params, result);
+    });
+
+    emit unlockDatabaseInDialogForSync(filePath);
+}
+
+void DatabaseWidget::uploadAndFinishSync(const RemoteParams* params, RemoteHandler::RemoteResult result)
+{
+    QScopedPointer<RemoteHandler> remoteHandler(new RemoteHandler(this));
+    if (result.success && !params->uploadCommand.isEmpty()) {
+        emit updateSyncProgress(75, tr("Uploading..."));
+        result = remoteHandler->upload(result.filePath, params);
+    }
+
+    finishSync(params, result);
+}
+
+void DatabaseWidget::finishSync(const RemoteParams* params, RemoteHandler::RemoteResult result)
+{
+    setDisabled(false);
+    emit updateSyncProgress(-1, "");
+    if (result.success) {
+        emit databaseSyncCompleted(params->name);
+        showMessage(tr("Remote sync '%1' completed successfully!").arg(params->name), MessageWidget::Positive, false);
+    } else {
+        emit databaseSyncFailed(params->name, result.errorMessage);
+        showErrorMessage(tr("Remote sync '%1' failed: %2").arg(params->name, result.errorMessage));
+    }
+}
+
+QList<RemoteParams*> DatabaseWidget::getRemoteParams() const
+{
+    return m_remoteSettings->getAllRemoteParams();
 }
 
 void DatabaseWidget::switchToMainView(bool previousDialogAccepted)
@@ -1320,7 +1402,7 @@ void DatabaseWidget::loadDatabase(bool accepted)
         m_entryBeforeLock = QUuid();
         m_saveAttempts = 0;
         emit databaseUnlocked();
-#ifdef WITH_XC_SSHAGENT
+#ifdef KPXC_FEATURE_SSHAGENT
         sshAgent()->databaseUnlocked(m_db);
 #endif
         if (config()->get(Config::MinimizeAfterUnlock).toBool()) {
@@ -1381,6 +1463,59 @@ void DatabaseWidget::mergeDatabase(bool accepted)
     }
 }
 
+void DatabaseWidget::syncUnlockedDatabase(bool accepted)
+{
+    if (accepted) {
+        if (!m_db) {
+            showMessage(tr("No current database."), MessageWidget::Error);
+            return;
+        }
+
+        auto* senderDialog = qobject_cast<DatabaseOpenDialog*>(sender());
+
+        Q_ASSERT(senderDialog);
+        if (!senderDialog) {
+            return;
+        }
+        auto destinationDb = senderDialog->database();
+
+        if (!destinationDb) {
+            showMessage(tr("No source database, nothing to do."), MessageWidget::Error);
+            return;
+        }
+
+        RemoteHandler::RemoteResult result;
+        QString error;
+        result.success = syncWithDatabase(destinationDb, error);
+        result.errorMessage = error;
+        result.filePath = destinationDb->filePath();
+
+        emit databaseSyncUnlocked(result);
+    }
+    switchToMainView();
+}
+
+bool DatabaseWidget::syncWithDatabase(const QSharedPointer<Database>& otherDb, QString& error)
+{
+    emit updateSyncProgress(50, tr("Syncing..."));
+    Merger firstMerge(m_db.data(), otherDb.data());
+    Merger secondMerge(otherDb.data(), m_db.data());
+    auto changeList = firstMerge.merge() + secondMerge.merge();
+
+    if (!changeList.isEmpty()) {
+        // Save synced databases
+        if (!save()) {
+            error = tr("Error while saving database %1: %2").arg(m_db->filePath(), error);
+            return false;
+        }
+        if (!otherDb->save(Database::Atomic, {}, &error)) {
+            error = tr("Error while saving database %1: %2").arg(otherDb->filePath(), error);
+            return false;
+        }
+    }
+    return true;
+}
+
 /**
  * Unlock the database.
  *
@@ -1394,12 +1529,23 @@ void DatabaseWidget::unlockDatabase(bool accepted)
         if (!senderDialog && (!m_db || !m_db->isInitialized())) {
             emit closeRequest();
         }
+        if (senderDialog && senderDialog->intent() == DatabaseOpenDialog::Intent::RemoteSync) {
+            RemoteHandler::RemoteResult result;
+            result.success = false;
+            result.errorMessage = "Remote database unlock cancelled.";
+            emit databaseSyncUnlockFailed(result);
+        }
         return;
     }
 
-    if (senderDialog && senderDialog->intent() == DatabaseOpenDialog::Intent::Merge) {
-        mergeDatabase(accepted);
-        return;
+    if (senderDialog) {
+        if (senderDialog->intent() == DatabaseOpenDialog::Intent::Merge) {
+            mergeDatabase(accepted);
+            return;
+        } else if (senderDialog->intent() == DatabaseOpenDialog::Intent::RemoteSync) {
+            syncUnlockedDatabase(accepted);
+            return;
+        }
     }
 
     emit databaseAboutToUnlock();
@@ -1419,7 +1565,7 @@ void DatabaseWidget::unlockDatabase(bool accepted)
     processAutoOpen();
     emit databaseUnlocked();
 
-#ifdef WITH_XC_SSHAGENT
+#ifdef KPXC_FEATURE_SSHAGENT
     sshAgent()->databaseUnlocked(m_db);
 #endif
 
@@ -1599,7 +1745,13 @@ void DatabaseWidget::switchToDatabaseSecurity()
     m_databaseSettingDialog->showDatabaseKeySettings();
 }
 
-#ifdef WITH_XC_BROWSER_PASSKEYS
+void DatabaseWidget::switchToRemoteSettings()
+{
+    switchToDatabaseSettings();
+    m_databaseSettingDialog->showRemoteSettings();
+}
+
+#ifdef KPXC_FEATURE_BROWSER
 void DatabaseWidget::switchToPasskeys()
 {
     switchToDatabaseReports();
@@ -1696,9 +1848,7 @@ void DatabaseWidget::search(const QString& searchtext)
     m_lastSearchText = searchtext;
 
     m_searchingLabel->setVisible(true);
-#ifdef WITH_XC_KEESHARE
     m_shareLabel->setVisible(false);
-#endif
 
     emit searchModeActivated();
 }
@@ -1763,7 +1913,6 @@ void DatabaseWidget::onGroupChanged()
 
     m_previewView->setGroup(group);
 
-#ifdef WITH_XC_KEESHARE
     auto shareLabel = KeeShare::sharingLabel(group);
     if (!shareLabel.isEmpty()) {
         m_shareLabel->setRawText(shareLabel);
@@ -1771,7 +1920,6 @@ void DatabaseWidget::onGroupChanged()
     } else {
         m_shareLabel->setVisible(false);
     }
-#endif
 
     emit groupChanged();
 }
@@ -1779,6 +1927,7 @@ void DatabaseWidget::onGroupChanged()
 void DatabaseWidget::onDatabaseModified()
 {
     refreshSearch();
+    m_remoteSettings->loadSettings();
     int autosaveDelayMs = m_db->metadata()->autosaveDelayMin() * 60 * 1000; // min to msec for QTimer
     bool autosaveAfterEveryChangeConfig = config()->get(Config::AutoSaveAfterEveryChange).toBool();
     if (autosaveDelayMs > 0 && autosaveAfterEveryChangeConfig) {
@@ -2054,7 +2203,7 @@ bool DatabaseWidget::lock()
         m_entryBeforeLock = currentEntry->uuid();
     }
 
-#ifdef WITH_XC_SSHAGENT
+#ifdef KPXC_FEATURE_SSHAGENT
     sshAgent()->databaseLocked(m_db);
 #endif
 #ifdef WITH_XC_REMOTESYNC
@@ -2281,7 +2430,7 @@ QStringList DatabaseWidget::customEntryAttributes() const
 {
     Entry* entry = m_entryView->currentEntry();
     if (!entry) {
-        return QStringList();
+        return {};
     }
 
     return entry->attributes()->customKeys();
@@ -2357,7 +2506,7 @@ bool DatabaseWidget::currentEntryHasTotp()
     return currentEntry->hasValidTotp();
 }
 
-#ifdef WITH_XC_SSHAGENT
+#ifdef KPXC_FEATURE_SSHAGENT
 bool DatabaseWidget::currentEntryHasSshKey()
 {
     Entry* currentEntry = m_entryView->currentEntry();
@@ -2370,7 +2519,7 @@ bool DatabaseWidget::currentEntryHasSshKey()
 }
 #endif
 
-#ifdef WITH_XC_BROWSER_PASSKEYS
+#ifdef KPXC_FEATURE_BROWSER
 bool DatabaseWidget::currentEntryHasPasskey()
 {
     auto currentEntry = m_entryView->currentEntry();

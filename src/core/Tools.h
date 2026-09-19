@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -53,11 +53,7 @@ namespace Tools
 
     template <class T> QSet<T> asSet(const QList<T>& a)
     {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
         return QSet<T>(a.begin(), a.end());
-#else
-        return QSet<T>::fromList(a);
-#endif
     }
 
     /**

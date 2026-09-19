@@ -41,9 +41,7 @@ EditWidgetProperties::EditWidgetProperties(QWidget* parent)
     connect(m_ui->removeCustomDataButton, SIGNAL(clicked()), SLOT(removeSelectedPluginData()));
 }
 
-EditWidgetProperties::~EditWidgetProperties()
-{
-}
+EditWidgetProperties::~EditWidgetProperties() = default;
 
 void EditWidgetProperties::setFields(const TimeInfo& timeInfo, const QUuid& uuid)
 {
@@ -116,6 +114,6 @@ void EditWidgetProperties::update()
             m_customDataModel->appendRow(QList<QStandardItem*>()
                                          << new QStandardItem(key) << new QStandardItem(m_customData->value(key)));
         }
-        m_ui->removeCustomDataButton->setEnabled(m_ui->customDataTable->selectionModel()->hasSelection());
+        m_ui->removeCustomDataButton->setEnabled(!m_customData->isEmpty());
     }
 }

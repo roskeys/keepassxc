@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2023 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,13 +27,7 @@
 #include "keys/ChallengeResponseKey.h"
 #include "keys/FileKey.h"
 #include "keys/PasswordKey.h"
-
-#ifdef Q_OS_MACOS
-#include "touchid/TouchID.h"
-#endif
-#ifdef Q_CC_MSVC
-#include "winhello/WindowsHello.h"
-#endif
+#include "quickunlock/QuickUnlockInterface.h"
 
 #include <QLayout>
 #include <QPushButton>
@@ -44,9 +38,7 @@ DatabaseSettingsWidgetDatabaseKey::DatabaseSettingsWidgetDatabaseKey(QWidget* pa
     , m_additionalKeyOptions(new QWidget(this))
     , m_passwordEditWidget(new PasswordEditWidget(this))
     , m_keyFileEditWidget(new KeyFileEditWidget(this))
-#ifdef WITH_XC_YUBIKEY
     , m_yubiKeyEditWidget(new YubiKeyEditWidget(this))
-#endif
 {
     auto* vbox = new QVBoxLayout(this);
     vbox->setSizeConstraint(QLayout::SetMinimumSize);
@@ -61,12 +53,10 @@ DatabaseSettingsWidgetDatabaseKey::DatabaseSettingsWidgetDatabaseKey(QWidget* pa
     vbox->addWidget(m_additionalKeyOptions);
     vbox->setSizeConstraint(QLayout::SetMinimumSize);
     m_additionalKeyOptions->setLayout(new QVBoxLayout());
-    m_additionalKeyOptions->layout()->setMargin(0);
+    m_additionalKeyOptions->layout()->setContentsMargins(0, 0, 0, 0);
     m_additionalKeyOptions->layout()->setSpacing(20);
     m_additionalKeyOptions->layout()->addWidget(m_keyFileEditWidget);
-#ifdef WITH_XC_YUBIKEY
     m_additionalKeyOptions->layout()->addWidget(m_yubiKeyEditWidget);
-#endif
     m_additionalKeyOptions->setVisible(false);
 
     connect(m_additionalKeyOptionsToggle, SIGNAL(clicked()), SLOT(showAdditionalKeyOptions()));
@@ -75,15 +65,13 @@ DatabaseSettingsWidgetDatabaseKey::DatabaseSettingsWidgetDatabaseKey(QWidget* pa
     setLayout(vbox);
 }
 
-DatabaseSettingsWidgetDatabaseKey::~DatabaseSettingsWidgetDatabaseKey()
-{
-}
+DatabaseSettingsWidgetDatabaseKey::~DatabaseSettingsWidgetDatabaseKey() = default;
 
 void DatabaseSettingsWidgetDatabaseKey::loadSettings(QSharedPointer<Database> db)
 {
     DatabaseSettingsWidget::loadSettings(db);
 
-    if (!m_db->key() || m_db->key()->keys().isEmpty()) {
+    if (!m_db->key() || m_db->key()->isEmpty()) {
         // Database has no key, we are about to add a new one
         m_passwordEditWidget->changeVisiblePage(KeyComponentWidget::Page::Edit);
         // Focus won't work until the UI settles
@@ -99,23 +87,19 @@ void DatabaseSettingsWidgetDatabaseKey::loadSettings(QSharedPointer<Database> db
             }
         }
 
-#ifdef WITH_XC_YUBIKEY
         for (const auto& key : m_db->key()->challengeResponseKeys()) {
             if (key->uuid() == ChallengeResponseKey::UUID) {
                 m_yubiKeyEditWidget->setComponentAdded(true);
                 hasAdditionalKeys = true;
             }
         }
-#endif
 
         setAdditionalKeyOptionsVisible(hasAdditionalKeys);
     }
 
     connect(m_passwordEditWidget->findChild<QPushButton*>("removeButton"), SIGNAL(clicked()), SLOT(markDirty()));
     connect(m_keyFileEditWidget->findChild<QPushButton*>("removeButton"), SIGNAL(clicked()), SLOT(markDirty()));
-#ifdef WITH_XC_YUBIKEY
     connect(m_yubiKeyEditWidget->findChild<QPushButton*>("removeButton"), SIGNAL(clicked()), SLOT(markDirty()));
-#endif
 }
 
 void DatabaseSettingsWidgetDatabaseKey::initialize()
@@ -123,9 +107,7 @@ void DatabaseSettingsWidgetDatabaseKey::initialize()
     bool blocked = blockSignals(true);
     m_passwordEditWidget->setComponentAdded(false);
     m_keyFileEditWidget->setComponentAdded(false);
-#ifdef WITH_XC_YUBIKEY
     m_yubiKeyEditWidget->setComponentAdded(false);
-#endif
     blockSignals(blocked);
 }
 
@@ -137,11 +119,9 @@ bool DatabaseSettingsWidgetDatabaseKey::saveSettings()
 {
     m_isDirty |= (m_passwordEditWidget->visiblePage() == KeyComponentWidget::Page::Edit);
     m_isDirty |= (m_keyFileEditWidget->visiblePage() == KeyComponentWidget::Page::Edit);
-#ifdef WITH_XC_YUBIKEY
     m_isDirty |= (m_yubiKeyEditWidget->visiblePage() == KeyComponentWidget::Page::Edit);
-#endif
 
-    if (m_db->key() && !m_db->key()->keys().isEmpty() && !m_isDirty) {
+    if (m_db->key() && !m_db->key()->isEmpty() && !m_isDirty) {
         // Key unchanged
         return true;
     }
@@ -220,11 +200,9 @@ bool DatabaseSettingsWidgetDatabaseKey::saveSettings()
         return false;
     }
 
-#ifdef WITH_XC_YUBIKEY
     if (!addToCompositeKey(m_yubiKeyEditWidget, newKey, oldChallengeResponse)) {
         return false;
     }
-#endif
 
     if (newKey->keys().isEmpty() && newKey->challengeResponseKeys().isEmpty()) {
         MessageBox::critical(this,
@@ -237,11 +215,7 @@ bool DatabaseSettingsWidgetDatabaseKey::saveSettings()
 
     m_db->setKey(newKey, true, false, false);
 
-#if defined(Q_OS_MACOS)
-    TouchID::getInstance().reset(m_db->filePath());
-#elif defined(Q_CC_MSVC)
-    getWindowsHello()->reset(m_db->filePath());
-#endif
+    getQuickUnlock()->reset(m_db->publicUuid());
 
     emit editFinished(true);
     if (m_isDirty) {

@@ -28,7 +28,7 @@
 class Database;
 class DefaultIconModel;
 class CustomIconModel;
-#ifdef WITH_XC_NETWORKING
+#ifdef KPXC_FEATURE_NETWORK
 class IconDownloader;
 #endif
 
@@ -62,7 +62,7 @@ class EditWidgetIcons : public QWidget
 
 public:
     explicit EditWidgetIcons(QWidget* parent = nullptr);
-    ~EditWidgetIcons();
+    ~EditWidgetIcons() override;
 
     IconStruct state();
     void reset();
@@ -104,7 +104,7 @@ private:
     ApplyIconToOptions m_applyIconTo;
     DefaultIconModel* const m_defaultIconModel;
     CustomIconModel* const m_customIconModel;
-#ifdef WITH_XC_NETWORKING
+#ifdef KPXC_FEATURE_NETWORK
     QSharedPointer<IconDownloader> m_downloader;
 #endif
 

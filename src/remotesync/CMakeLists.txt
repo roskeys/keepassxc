@@ -27,13 +27,7 @@ if(WITH_XC_REMOTESYNC)
         DatabaseSettingsWidgetRemoteSync.h
     )
 
-    set(remotesync_UIS
-        DatabaseSettingsWidgetRemoteSync.ui
-    )
-
-    qt5_wrap_ui(remotesync_UI_SOURCES ${remotesync_UIS})
-
-    add_library(remotesync STATIC ${remotesync_SOURCES} ${remotesync_HEADERS} ${remotesync_UI_SOURCES})
-    target_link_libraries(remotesync Qt5::Core Qt5::Network Qt5::Xml Qt5::Widgets Qt5::Concurrent)
+    add_library(remotesync STATIC ${remotesync_SOURCES} ${remotesync_HEADERS} ${remotesync_UIS})
+    target_link_libraries(remotesync PUBLIC Qt6::Core Qt6::Network Qt6::Widgets Qt6::Concurrent)
     target_include_directories(remotesync PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_BINARY_DIR})
 endif()

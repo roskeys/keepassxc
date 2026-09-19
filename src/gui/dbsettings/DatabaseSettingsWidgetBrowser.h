@@ -55,7 +55,6 @@ private slots:
     void updateSharedKeyList();
     void removeSharedEncryptionKeys();
     void removeStoredPermissions();
-    void convertAttributesToCustomData();
     void refreshDatabaseID();
     void editIndex(const QModelIndex& index);
     void editFinished(QStandardItem* item);
@@ -64,7 +63,6 @@ private:
     void updateModel();
     void settingsWarning();
     void replaceKey(const QString& prefix, const QString& oldName, const QString& newName) const;
-    QString getKeyWithPrefix(const QString& prefix, const QString& key) const;
 
 protected:
     void showEvent(QShowEvent* event) override;

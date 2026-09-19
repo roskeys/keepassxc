@@ -27,7 +27,7 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QMimeData>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTemporaryFile>
 
@@ -113,9 +113,7 @@ EntryAttachmentsWidget::EntryAttachmentsWidget(QWidget* parent)
     updateButtonsEnabled();
 }
 
-EntryAttachmentsWidget::~EntryAttachmentsWidget()
-{
-}
+EntryAttachmentsWidget::~EntryAttachmentsWidget() = default;
 
 const EntryAttachments* EntryAttachmentsWidget::attachments() const
 {
@@ -360,7 +358,7 @@ void EntryAttachmentsWidget::saveSelectedAttachments()
 
     QDir saveDir(saveDirPath);
     if (!saveDir.exists()) {
-        if (saveDir.mkpath(saveDir.absolutePath())) {
+        if (!saveDir.mkpath(saveDir.absolutePath())) {
             errorOccurred(tr("Unable to create directory:\n%1").arg(saveDir.absolutePath()));
             return;
         }
@@ -370,7 +368,7 @@ void EntryAttachmentsWidget::saveSelectedAttachments()
     QStringList errors;
     for (const QModelIndex& index : indexes) {
         QString attachmentKey = m_attachmentsModel->keyByIndex(index);
-        const QString fileNameSanitized = attachmentKey.replace(QRegExp("[/\\\\]"), "");
+        const QString fileNameSanitized = attachmentKey.replace(QRegularExpression("[/\\\\]"), "");
         const QString attachmentPath = saveDir.absoluteFilePath(fileNameSanitized);
 
         if (QFileInfo::exists(attachmentPath)) {
@@ -552,14 +550,14 @@ bool EntryAttachmentsWidget::eventFilter(QObject* watched, QEvent* e)
     if (watched == m_ui->attachmentsView->viewport() && !isReadOnly()) {
         const QEvent::Type eventType = e->type();
         if (eventType == QEvent::DragEnter || eventType == QEvent::DragMove) {
-            QDropEvent* dropEv = static_cast<QDropEvent*>(e);
+            auto dropEv = static_cast<QDropEvent*>(e);
             const QMimeData* mimeData = dropEv->mimeData();
             if (mimeData->hasUrls()) {
                 dropEv->acceptProposedAction();
                 return true;
             }
         } else if (eventType == QEvent::Drop) {
-            QDropEvent* dropEv = static_cast<QDropEvent*>(e);
+            auto dropEv = static_cast<QDropEvent*>(e);
             const QMimeData* mimeData = dropEv->mimeData();
             if (mimeData->hasUrls()) {
                 dropEv->acceptProposedAction();

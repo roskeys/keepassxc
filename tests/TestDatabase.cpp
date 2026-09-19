@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2017 Vladimir Svyatski <v.unreal@gmail.com>
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ static QString dbFileName = QStringLiteral(KEEPASSX_TEST_DATA_DIR).append("/NewD
 void TestDatabase::initTestCase()
 {
     QVERIFY(Crypto::init());
+    QLocale::setDefault(QLocale::c());
 }
 
 void TestDatabase::testOpen()
@@ -125,7 +126,7 @@ void TestDatabase::testSaveAs()
     QVERIFY(QFile::exists(newDbFileName));
 #ifdef Q_OS_WIN
     QVERIFY(!QFileInfo(newDbFileName).isHidden());
-    SetFileAttributes(newDbFileName.toStdString().c_str(), FILE_ATTRIBUTE_HIDDEN);
+    SetFileAttributes(newDbFileName.toStdWString().c_str(), FILE_ATTRIBUTE_HIDDEN);
     QVERIFY2(db->saveAs(newDbFileName, Database::Atomic, QString(), &error), error.toLatin1());
     QVERIFY(QFileInfo(newDbFileName).isHidden());
 #endif

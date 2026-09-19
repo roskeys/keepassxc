@@ -15,6 +15,7 @@ These are just guidelines, not rules. Use your best judgment, and feel free to p
   * [Bug reports](#bug-reports)
   * [Discuss with the team](#discuss-with-the-team)
   * [Your first code contribution](#your-first-code-contribution)
+  * [Using AI](#using-ai)
   * [Pull requests](#pull-requests)
   * [Translations](#translations)
 
@@ -38,7 +39,7 @@ We will accept contributions of good code that we can use from anyone.
  - “contributions”: This means just about anything you wish to contribute to the project, as long as it is good code we can use. The easier you make it for us to accept your contribution, the happier we are, but if it’s good enough, we will do a reasonable amount of work to use it.
  - “of good code”: This means that we will accept contributions that work well and efficiently, that fit in with the goals of the project, that match the project’s coding style, and that do not impose an undue maintenance workload on us going forward. This does not mean just program code, either, but documentation and artistic works as appropriate to the project.
  - “that we can use”: This means that your contribution must be given freely and irrevocably, that you must have the right to contribute it for our unrestricted use, and that your contribution is made under a license that is compatible with the license the project has chosen and that permits us to include, distribute, and modify your work without restriction.
- - “from anyone”: This means exactly that. We don’t care about anything but your code. We don’t care about your race, religion, national origin, biological gender, perceived gender, sexual orientation, lifestyle, political viewpoint, or anything extraneous like that. We will neither reject your contribution nor grant it preferential treatment on any basis except the code itself. We do, however, reserve the right to tell you to go away if you behave too obnoxiously toward us.
+ - “from anyone”: This means exactly that. We don’t care about anything but your code. We don’t care about your race, religion, national origin, biological gender, perceived gender, sexual orientation, lifestyle, political viewpoint, or anything extraneous like that. We will neither reject your contribution nor grant it preferential treatment on any basis except the code itself. We do, however, reserve the right to limit your access to our community if you violate our [Code of Conduct](../CODE-OF-CONDUCT.md).
 
 #### If Your Contribution Is Rejected
 
@@ -74,6 +75,10 @@ Unsure where to begin contributing to KeePassXC? You can start by looking throug
 
 Both issue lists are sorted by total number of comments. While not perfect, looking at the number of comments on an issue can give a general idea of how much an impact a given change will have.
 
+### Using AI
+
+Generative AI is fast becoming a first-party feature in most development environments, including GitHub itself. If you use Generative AI to write the vast majority of your submission (e.g., agent-based or vibe coding) then you **must document your use of AI** in your pull request. Please include the service you used and/or model that generated the code. All code submissions go through a rigorous review process regardless of the development workflow used.
+
 ### Pull requests
 
 Along with our desire to hear your feedback and suggestions, we're also interested in accepting direct assistance in the form of code.
@@ -82,7 +87,7 @@ All pull requests must comply with the above requirements and with the [stylegui
 
 ### Translations
 
-Translations are managed on [Transifex](https://www.transifex.com/keepassxc/keepassxc/) which offers a web interface.
+Translations are managed on [Transifex](https://explore.transifex.com/keepassxc/keepassxc/) which offers a web interface.
 Please join an existing language team or request a new one if there is none.
 
 If you open a Pull Request with new strings that require translations, you will need to run the following:

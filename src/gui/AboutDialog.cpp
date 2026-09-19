@@ -285,8 +285,8 @@ static const QString aboutContributors = R"(
 <h3>Translations:</h3>
 <ul>
     <li><strong>Arabic:</strong> kmutahar</li>
-    <li><strong>Chinese (China):</strong> Biggulu, Brandon_c, hoilc, ligyxy, Small_Ku, umi_neko, vc5</li>
-    <li><strong>Chinese (Taiwan):</strong> BestSteve, flachesis, MiauLightouch, Small_Ku, yan12125, ymhuang0808</li>
+    <li><strong>Chinese (Simplified):</strong> Biggulu, Brandon_c, hoilc, ligyxy, Small_Ku, umi_neko, vc5</li>
+    <li><strong>Chinese (Traditional):</strong> BestSteve, flachesis, MiauLightouch, Small_Ku, yan12125, ymhuang0808</li>
     <li><strong>Czech:</strong> DanielMilde, pavelb, tpavelek</li>
     <li><strong>English (United Kingdom):</strong> YCMHARHZ</li>
     <li><strong>English (United States):</strong> alexandercrice, DarkHolme, nguyenlekhtn</li>
@@ -345,9 +345,7 @@ AboutDialog::AboutDialog(QWidget* parent)
     m_ui->buttonBox->button(QDialogButtonBox::Close)->setDefault(true);
 }
 
-AboutDialog::~AboutDialog()
-{
-}
+AboutDialog::~AboutDialog() = default;
 
 void AboutDialog::copyToClipboard()
 {

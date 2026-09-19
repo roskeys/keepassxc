@@ -39,9 +39,7 @@ namespace Ui
 class IEditGroupPage
 {
 public:
-    virtual ~IEditGroupPage()
-    {
-    }
+    virtual ~IEditGroupPage() = default;
     virtual QString name() = 0;
     virtual QIcon icon() = 0;
     virtual QWidget* createWidget() = 0;
@@ -55,7 +53,7 @@ class EditGroupWidget : public EditWidget
 
 public:
     explicit EditGroupWidget(QWidget* parent = nullptr);
-    ~EditGroupWidget();
+    ~EditGroupWidget() override;
 
     void loadGroup(Group* group, bool create, const QSharedPointer<Database>& database);
     void clear();
@@ -71,7 +69,7 @@ private slots:
     void apply();
     void save();
     void cancel();
-#ifdef WITH_XC_BROWSER
+#ifdef KPXC_FEATURE_BROWSER
     void initializeBrowserPage();
     void setupBrowserModifiedTracking();
     void updateBrowserModified();
@@ -92,7 +90,7 @@ private:
     QPointer<QScrollArea> m_editGroupWidgetMain;
     QPointer<EditWidgetIcons> m_editGroupWidgetIcons;
     QPointer<EditWidgetProperties> m_editWidgetProperties;
-#ifdef WITH_XC_BROWSER
+#ifdef KPXC_FEATURE_BROWSER
     bool m_browserSettingsChanged;
     const QScopedPointer<Ui::EditGroupWidgetBrowser> m_browserUi;
     QWidget* const m_browserWidget;

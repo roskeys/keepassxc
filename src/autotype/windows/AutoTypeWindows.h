@@ -1,6 +1,6 @@
 /*
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2016 Lennart Glauer <mail@lennart-glauer.de>
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,10 +16,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSX_AUTOTYPEWINDOWS_H
-#define KEEPASSX_AUTOTYPEWINDOWS_H
-
-#include <QtPlugin>
+#ifndef KEEPASSXC_AUTOTYPEWINDOWS_H
+#define KEEPASSXC_AUTOTYPEWINDOWS_H
 
 #undef NOMINMAX
 #define NOMINMAX
@@ -27,27 +25,30 @@
 #include <windows.h>
 
 #include "autotype/AutoTypeAction.h"
-#include "autotype/AutoTypePlatformPlugin.h"
+#include "autotype/AutoTypePlatform.h"
+
+class WinUtils;
 
 class AutoTypePlatformWin : public QObject, public AutoTypePlatformInterface
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.keepassx.AutoTypePlatformWindows")
-    Q_INTERFACES(AutoTypePlatformInterface)
 
 public:
+    explicit AutoTypePlatformWin();
     bool isAvailable() override;
     QStringList windowTitles() override;
     WId activeWindow() override;
     QString activeWindowTitle() override;
     bool raiseWindow(WId window) override;
-    AutoTypeExecutor* createExecutor() override;
+    AutoTypeExecutor& executor() const override;
 
     void sendCharVirtual(const QChar& ch);
     void sendChar(const QChar& ch);
     void setKeyState(Qt::Key key, bool down);
 
 private:
+    AutoTypeExecutor* m_executor = nullptr;
+
     static bool isExtendedKey(DWORD nativeKeyCode);
     static bool isAltTabWindow(HWND hwnd);
     static BOOL CALLBACK windowTitleEnumProc(_In_ HWND hwnd, _In_ LPARAM lParam);
@@ -67,4 +68,4 @@ private:
     AutoTypePlatformWin* const m_platform;
 };
 
-#endif // KEEPASSX_AUTOTYPEWINDOWS_H
+#endif // KEEPASSXC_AUTOTYPEWINDOWS_H

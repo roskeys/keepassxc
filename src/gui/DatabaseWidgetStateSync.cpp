@@ -38,9 +38,7 @@ DatabaseWidgetStateSync::DatabaseWidgetStateSync(QObject* parent)
     connect(&m_syncTimer, &QTimer::timeout, this, &DatabaseWidgetStateSync::sync);
 }
 
-DatabaseWidgetStateSync::~DatabaseWidgetStateSync()
-{
-}
+DatabaseWidgetStateSync::~DatabaseWidgetStateSync() = default;
 
 /**
  * Sync state with persistent storage.

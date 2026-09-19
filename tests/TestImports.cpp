@@ -36,6 +36,7 @@ QTEST_GUILESS_MAIN(TestImports)
 void TestImports::initTestCase()
 {
     QVERIFY(Crypto::init());
+    QLocale::setDefault(QLocale::c());
 }
 
 void TestImports::testOPUX()
@@ -480,4 +481,11 @@ void TestImports::testProtonPass()
     // Confirm second group (vault)
     entry = db->rootGroup()->findEntryByPath("/Test/Other vault login");
     QVERIFY(entry);
+
+    // Confirm unknown type entry
+    entry = db->rootGroup()->findEntryByPath("/Personal/Unknown Type");
+    QVERIFY(entry);
+    attr = entry->attributes();
+    QCOMPARE(attr->value("content_attr1"), QStringLiteral("value1"));
+    QCOMPARE(attr->value("content_attr2"), QStringLiteral("value2"));
 }

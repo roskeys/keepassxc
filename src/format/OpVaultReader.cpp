@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -34,9 +34,7 @@ OpVaultReader::OpVaultReader(QObject* parent)
 {
 }
 
-OpVaultReader::~OpVaultReader()
-{
-}
+OpVaultReader::~OpVaultReader() = default;
 
 QSharedPointer<Database> OpVaultReader::convert(QDir& opdataDir, const QString& password)
 {
@@ -160,9 +158,9 @@ bool OpVaultReader::processProfileJson(QJsonObject& profileJson, const QString& 
     }
     auto rootGroupTime = rootGroup->timeInfo();
     auto createdAt = static_cast<uint>(profileJson["createdAt"].toInt());
-    rootGroupTime.setCreationTime(QDateTime::fromTime_t(createdAt, Qt::UTC));
+    rootGroupTime.setCreationTime(QDateTime::fromSecsSinceEpoch(createdAt, Qt::UTC));
     auto updatedAt = static_cast<uint>(profileJson["updatedAt"].toInt());
-    rootGroupTime.setLastModificationTime(QDateTime::fromTime_t(updatedAt, Qt::UTC));
+    rootGroupTime.setLastModificationTime(QDateTime::fromSecsSinceEpoch(updatedAt, Qt::UTC));
     rootGroup->setUuid(Tools::hexToUuid(profileJson["uuid"].toString()));
 
     QScopedPointer derivedKeys(deriveKeysFromPassPhrase(salt, password, iterations));
@@ -240,12 +238,12 @@ bool OpVaultReader::processFolderJson(QJsonObject& foldersJson, Group* rootGroup
         bool timeInfoOk = false;
         if (folder.contains("created")) {
             auto createdTime = static_cast<uint>(folder["created"].toInt());
-            ti.setCreationTime(QDateTime::fromTime_t(createdTime, Qt::UTC));
+            ti.setCreationTime(QDateTime::fromSecsSinceEpoch(createdTime, Qt::UTC));
             timeInfoOk = true;
         }
         if (folder.contains("updated")) {
             auto updateTime = static_cast<uint>(folder["updated"].toInt());
-            ti.setLastModificationTime(QDateTime::fromTime_t(updateTime, Qt::UTC));
+            ti.setLastModificationTime(QDateTime::fromSecsSinceEpoch(updateTime, Qt::UTC));
             timeInfoOk = true;
         }
         // "tx" is modified by sync, not by user; maybe a custom attribute?
@@ -273,11 +271,11 @@ QJsonObject OpVaultReader::readAndAssertJsonFile(QFile& file, const QString& str
     auto absFilePath = fileInfo.absoluteFilePath();
     if (!fileInfo.exists()) {
         qCritical() << QString("File \"%1\" must exist").arg(absFilePath);
-        return QJsonObject();
+        return {};
     }
     if (!fileInfo.isReadable()) {
         qCritical() << QString("File \"%1\" must be readable").arg(absFilePath);
-        return QJsonObject();
+        return {};
     }
 
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -303,7 +301,7 @@ QJsonObject OpVaultReader::readAndAssertJsonFile(QFile& file, const QString& str
     QJsonDocument jDoc = QJsonDocument::fromJson(filePayload, error);
     if (!jDoc.isObject()) {
         qCritical() << "Expected " << filePayload << "to be a JSON Object";
-        return QJsonObject();
+        return {};
     }
     return jDoc.object();
 }

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2024 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ void TestTools::initTestCase()
     Q_ASSERT(s_clock == nullptr);
     s_clock = new MockClock(2026, 3, 8, 21, 45, 05);
     MockClock::setup(s_clock);
+    QLocale::setDefault(QLocale::c());
 }
 
 void TestTools::cleanupTestCase()
@@ -426,7 +427,7 @@ void TestTools::testGetMimeTypeByFileInfo()
     const QStringList UnknownHeaders = {"test.doc", "test.pdf", "test.docx"};
 
     for (const auto& unknown : UnknownHeaders) {
-        QCOMPARE(Tools::getMimeType(unknown), Tools::MimeType::Unknown);
+        QCOMPARE(Tools::getMimeType(QFileInfo(unknown)), Tools::MimeType::Unknown);
     }
 }
 

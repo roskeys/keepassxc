@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2018 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -33,6 +33,8 @@
 #include <QSaveFile>
 #include <QTemporaryFile>
 #include <QTimer>
+
+#include <algorithm>
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -114,6 +116,8 @@ bool Database::open(QSharedPointer<const CompositeKey> key, QString* error)
  * Open the database from a file.
  * Unless `readOnly` is set to false, the database will be opened in
  * read-write mode and fall back to read-only if that is not possible.
+ *
+ * If key is provided as null, only headers will be read.
  *
  * @param filePath path to the file
  * @param key composite key for unlocking the database
@@ -334,7 +338,7 @@ bool Database::saveAs(const QString& filePath, SaveAction action, const QString&
 
 #ifdef Q_OS_WIN
         if (isHidden) {
-            SetFileAttributes(realFilePath.toStdString().c_str(), FILE_ATTRIBUTE_HIDDEN);
+            SetFileAttributes(realFilePath.toStdWString().c_str(), FILE_ATTRIBUTE_HIDDEN);
         }
 #endif
         m_ignoreFileChangesUntilSaved = false;
@@ -518,7 +522,9 @@ bool Database::import(const QString& xmlExportPath, QString* error)
 {
     KdbxXmlReader reader(KeePass2::FILE_VERSION_4);
     QFile file(xmlExportPath);
-    file.open(QIODevice::ReadOnly);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return false;
+    }
 
     reader.readDatabase(&file, this);
 
@@ -747,22 +753,14 @@ const QList<DeletedObject>& Database::deletedObjects() const
 
 bool Database::containsDeletedObject(const QUuid& uuid) const
 {
-    for (const DeletedObject& currentObject : m_deletedObjects) {
-        if (currentObject.uuid == uuid) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(m_deletedObjects.cbegin(),
+                       m_deletedObjects.cend(),
+                       [&uuid](const DeletedObject& object) -> bool { return object.uuid == uuid; });
 }
 
 bool Database::containsDeletedObject(const DeletedObject& object) const
 {
-    for (const DeletedObject& currentObject : m_deletedObjects) {
-        if (currentObject.uuid == object.uuid) {
-            return true;
-        }
-    }
-    return false;
+    return containsDeletedObject(object.uuid);
 }
 
 void Database::setDeletedObjects(const QList<DeletedObject>& delObjs)
@@ -1125,6 +1123,24 @@ void Database::stopModifiedTimer()
     QMetaObject::invokeMethod(&m_modifiedTimer, "stop");
 }
 
+QUuid Database::publicUuid()
+{
+    // This feature requires KDBX4
+    if (m_data.formatVersion < KeePass2::FILE_VERSION_4) {
+        // Return the file path hash as a UUID for KDBX3
+        QCryptographicHash hasher(QCryptographicHash::Sha256);
+        hasher.addData(filePath().toUtf8());
+        return QUuid::fromRfc4122(hasher.result().left(16));
+    }
+
+    if (!publicCustomData().contains("KPXC_PUBLIC_UUID")) {
+        publicCustomData().insert("KPXC_PUBLIC_UUID", QUuid::createUuid().toRfc4122());
+        markAsModified();
+    }
+
+    return QUuid::fromRfc4122(publicCustomData()["KPXC_PUBLIC_UUID"].toByteArray());
+}
+
 QString Database::publicName()
 {
     return publicCustomData().value("KPXC_PUBLIC_NAME").toString();
@@ -1171,4 +1187,14 @@ void Database::setPublicIcon(int iconIndex)
         publicCustomData().insert("KPXC_PUBLIC_ICON", iconIndex);
     }
     markAsModified();
+}
+
+void Database::markAsTemporaryDatabase()
+{
+    m_isTemporaryDatabase = true;
+}
+
+bool Database::isTemporaryDatabase()
+{
+    return m_isTemporaryDatabase;
 }

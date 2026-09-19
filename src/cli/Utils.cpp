@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,10 +21,8 @@
 #include "core/Entry.h"
 #include "core/EntryAttributes.h"
 #include "core/Global.h"
-#include "keys/FileKey.h"
-#ifdef WITH_XC_YUBIKEY
 #include "keys/ChallengeResponseKey.h"
-#endif
+#include "keys/FileKey.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -51,24 +49,28 @@ namespace Utils
     void setDefaultTextStreams()
     {
         auto fd = new QFile();
-        fd->open(stdout, QIODevice::WriteOnly);
-        STDOUT.setDevice(fd);
+        if (fd->open(stdout, QIODevice::WriteOnly)) {
+            STDOUT.setDevice(fd);
+        }
 
         fd = new QFile();
-        fd->open(stderr, QIODevice::WriteOnly);
-        STDERR.setDevice(fd);
+        if (fd->open(stderr, QIODevice::WriteOnly)) {
+            STDERR.setDevice(fd);
+        }
 
         fd = new QFile();
-        fd->open(stdin, QIODevice::ReadOnly);
-        STDIN.setDevice(fd);
+        if (fd->open(stdin, QIODevice::ReadOnly)) {
+            STDIN.setDevice(fd);
+        }
 
         fd = new QFile();
 #ifdef Q_OS_WIN
-        fd->open(fopen("nul", "w"), QIODevice::WriteOnly);
+        if (fd->open(fopen("nul", "w"), QIODevice::WriteOnly)) {
 #else
-        fd->open(fopen("/dev/null", "w"), QIODevice::WriteOnly);
+        if (fd->open(fopen("/dev/null", "w"), QIODevice::WriteOnly)) {
 #endif
-        DEVNULL.setDevice(fd);
+            DEVNULL.setDevice(fd);
+        }
 
 #ifdef Q_OS_WIN
         origCodePage = GetConsoleCP();
@@ -172,7 +174,6 @@ namespace Utils
             compositeKey->addKey(fileKey);
         }
 
-#ifdef WITH_XC_YUBIKEY
         if (!yubiKeySlot.isEmpty()) {
             unsigned int serial = 0;
             int slot;
@@ -203,18 +204,14 @@ namespace Utils
 
             YubiKey::instance()->findValidKeys();
         }
-#else
-        Q_UNUSED(yubiKeySlot);
-#endif // WITH_XC_YUBIKEY
 
         auto db = QSharedPointer<Database>::create();
         QString error;
-        if (db->open(databaseFilename, compositeKey, &error)) {
-            return db;
-        } else {
+        if (!db->open(databaseFilename, compositeKey, &error)) {
             err << error << Qt::endl;
             return {};
         }
+        return db;
     }
 
     /**
@@ -348,6 +345,8 @@ namespace Utils
 
             if (clipProcess->exitCode() == EXIT_SUCCESS) {
                 return EXIT_SUCCESS;
+            } else {
+                failedProgramNames.append(prog.first);
             }
         }
 
@@ -403,7 +402,7 @@ namespace Utils
         if (fieldName == TagsFieldName) {
             return entry->tags();
         }
-        return QString("");
+        return "";
     }
 
     QStringList findAttributes(const EntryAttributes& attributes, const QString& name)
@@ -432,7 +431,7 @@ namespace Utils
      *
      * @param path Path to the key file to be loaded
      * @param fileKey Resulting fileKey
-     * @return true if the key file was loaded succesfully
+     * @return true if the key file was loaded successfully
      */
     bool loadFileKey(const QString& path, QSharedPointer<FileKey>& fileKey)
     {

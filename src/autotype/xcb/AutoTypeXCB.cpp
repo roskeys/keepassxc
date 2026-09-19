@@ -1,7 +1,7 @@
 /*
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
  *  Copyright (C) 2000-2008 Tom Sato <VEF00200@nifty.ne.jp>
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,12 +17,14 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <QApplication>
+
 #include "AutoTypeXCB.h"
 #include "core/Tools.h"
 #include "gui/osutils/nixutils/X11Funcs.h"
 
-#include <QX11Info>
 #include <X11/XKBlib.h>
+#include <X11/Xatom.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/XTest.h>
 
@@ -36,10 +38,18 @@ static const QPair<KeySym, KeySym> deadMap[] = {
 };
 
 AutoTypePlatformX11::AutoTypePlatformX11()
+    : m_executor(new AutoTypeExecutorX11(this))
 {
     // Qt handles XCB slightly differently so we open our own connection
-    m_dpy = XOpenDisplay(XDisplayString(QX11Info::display()));
-    m_rootWindow = QX11Info::appRootWindow();
+    if (auto* native = qGuiApp->nativeInterface<QNativeInterface::QX11Application>()) {
+        m_dpy = XOpenDisplay(XDisplayString(native->display()));
+        m_rootWindow = DefaultRootWindow(native->display());
+    } else {
+        qWarning("Auto-Type: Unable to connect to X server, Auto-Type is disabled.");
+        return;
+    }
+
+    Q_ASSERT(m_dpy);
 
     m_atomWmState = XInternAtom(m_dpy, "WM_STATE", True);
     m_atomWmName = XInternAtom(m_dpy, "WM_NAME", True);
@@ -49,6 +59,7 @@ AutoTypePlatformX11::AutoTypePlatformX11()
     m_atomNetActiveWindow = XInternAtom(m_dpy, "_NET_ACTIVE_WINDOW", True);
     m_atomTransientFor = XInternAtom(m_dpy, "WM_TRANSIENT_FOR", True);
     m_atomWindow = XInternAtom(m_dpy, "WINDOW", True);
+    m_appUserTime = XInternAtom(m_dpy, "_NET_WM_USER_TIME", False);
 
     m_classBlacklist << "desktop_window" << "gnome-panel"; // Gnome
     m_classBlacklist << "kdesktop" << "kicker"; // KDE 3
@@ -59,10 +70,15 @@ AutoTypePlatformX11::AutoTypePlatformX11()
     m_xkb = nullptr;
 
     m_loaded = true;
+    m_executor = new AutoTypeExecutorX11(this);
 }
 
 bool AutoTypePlatformX11::isAvailable()
 {
+    if (!m_loaded) {
+        return false;
+    }
+
     int ignore;
 
     if (!XQueryExtension(m_dpy, "XInputExtension", &ignore, &ignore, &ignore)) {
@@ -76,7 +92,7 @@ bool AutoTypePlatformX11::isAvailable()
     return true;
 }
 
-void AutoTypePlatformX11::unload()
+AutoTypePlatformX11::~AutoTypePlatformX11()
 {
     m_keymap.clear();
 
@@ -85,8 +101,10 @@ void AutoTypePlatformX11::unload()
         m_xkb = nullptr;
     }
 
-    XCloseDisplay(m_dpy);
-    m_dpy = nullptr;
+    if (m_dpy) {
+        XCloseDisplay(m_dpy);
+        m_dpy = nullptr;
+    }
 
     m_loaded = false;
 }
@@ -127,9 +145,9 @@ QString AutoTypePlatformX11::activeWindowTitle()
     return windowTitle(activeWindow(), true);
 }
 
-AutoTypeExecutor* AutoTypePlatformX11::createExecutor()
+AutoTypeExecutor& AutoTypePlatformX11::executor() const
 {
-    return new AutoTypeExecutorX11(this);
+    return *m_executor;
 }
 
 QString AutoTypePlatformX11::windowTitle(Window window, bool useBlacklist)
@@ -181,17 +199,17 @@ QString AutoTypePlatformX11::windowTitle(Window window, bool useBlacklist)
 
     if (useBlacklist && !title.isEmpty()) {
         if (window == m_rootWindow) {
-            return QString();
+            return {};
         }
 
         QString className = windowClassName(window);
         if (m_classBlacklist.contains(className)) {
-            return QString();
+            return {};
         }
 
         QList<Window> keepassxWindows = widgetsToX11Windows(QApplication::topLevelWidgets());
         if (keepassxWindows.contains(window)) {
-            return QString();
+            return {};
         }
     }
 
@@ -287,6 +305,31 @@ bool AutoTypePlatformX11::isTopLevelWindow(Window window)
     }
 
     return result;
+}
+
+unsigned long AutoTypePlatformX11::appUserTime(Window window)
+{
+    auto appUserTime = 0;
+
+    Atom type = None;
+    int format;
+    unsigned long nitems;
+    unsigned long after;
+    unsigned char* data = nullptr;
+
+    if (XGetWindowProperty(
+            m_dpy, window, m_appUserTime, 0, 1, False, XA_CARDINAL, &type, &format, &nitems, &after, &data)
+        == Success) {
+        if (data && nitems == 1) {
+            appUserTime = *reinterpret_cast<unsigned long*>(data);
+        }
+
+        if (data) {
+            XFree(data);
+        }
+    }
+
+    return appUserTime;
 }
 
 /*
@@ -625,7 +668,7 @@ bool AutoTypePlatformX11::raiseWindow(WId window)
     event.xclient.message_type = m_atomNetActiveWindow;
     event.xclient.format = 32;
     event.xclient.data.l[0] = 1; // FromApplication
-    event.xclient.data.l[1] = QX11Info::appUserTime();
+    event.xclient.data.l[1] = appUserTime(window);
     QWidget* activeWindow = QApplication::activeWindow();
     if (activeWindow) {
         event.xclient.data.l[2] = activeWindow->internalWinId();

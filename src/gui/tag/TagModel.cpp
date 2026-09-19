@@ -34,9 +34,7 @@ TagModel::TagModel(QObject* parent)
                       << qMakePair(tr("TOTP Entries"), QString("has:totp"));
 }
 
-TagModel::~TagModel()
-{
-}
+TagModel::~TagModel() = default;
 
 void TagModel::setDatabase(QSharedPointer<Database> db)
 {

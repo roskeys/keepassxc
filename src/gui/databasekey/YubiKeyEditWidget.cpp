@@ -24,27 +24,19 @@
 #include "gui/Icons.h"
 #include "keys/ChallengeResponseKey.h"
 #include "keys/CompositeKey.h"
-#ifdef WITH_XC_YUBIKEY
 #include "keys/drivers/YubiKeyInterfaceUSB.h"
-#endif
 
 YubiKeyEditWidget::YubiKeyEditWidget(QWidget* parent)
     : KeyComponentWidget(parent)
     , m_compUi(new Ui::YubiKeyEditWidget())
-#ifdef WITH_XC_YUBIKEY
     , m_deviceListener(new DeviceListener(this))
-#endif
 {
     initComponent();
-#ifdef WITH_XC_YUBIKEY
     connect(YubiKey::instance(), SIGNAL(detectComplete(bool)), SLOT(hardwareKeyResponse(bool)), Qt::QueuedConnection);
     connect(m_deviceListener, &DeviceListener::devicePlugged, this, [&](bool, void*, void*) { pollYubikey(); });
-#endif
 }
 
-YubiKeyEditWidget::~YubiKeyEditWidget()
-{
-}
+YubiKeyEditWidget::~YubiKeyEditWidget() = default;
 
 bool YubiKeyEditWidget::addToCompositeKey(QSharedPointer<CompositeKey> key)
 {
@@ -92,7 +84,6 @@ void YubiKeyEditWidget::showEvent(QShowEvent* event)
 {
     KeyComponentWidget::showEvent(event);
 
-#ifdef WITH_XC_YUBIKEY
 #ifdef Q_OS_WIN
     m_deviceListener->registerHotplugCallback(true,
                                               true,
@@ -108,15 +99,12 @@ void YubiKeyEditWidget::showEvent(QShowEvent* event)
     m_deviceListener->registerHotplugCallback(true, true, YubiKeyInterfaceUSB::YUBICO_USB_VID);
     m_deviceListener->registerHotplugCallback(true, true, YubiKeyInterfaceUSB::ONLYKEY_USB_VID);
 #endif
-#endif
 }
 
 void YubiKeyEditWidget::hideEvent(QHideEvent* event)
 {
     KeyComponentWidget::hideEvent(event);
-#ifdef WITH_XC_YUBIKEY
     m_deviceListener->deregisterAllHotplugCallbacks();
-#endif
 }
 
 void YubiKeyEditWidget::initComponentEditWidget(QWidget* widget)
@@ -148,7 +136,6 @@ void YubiKeyEditWidget::initComponent()
 
 void YubiKeyEditWidget::pollYubikey()
 {
-#ifdef WITH_XC_YUBIKEY
     if (!m_compEditWidget) {
         return;
     }
@@ -161,7 +148,6 @@ void YubiKeyEditWidget::pollYubikey()
     m_compUi->refreshHardwareKeys->setEnabled(false);
 
     YubiKey::instance()->findValidKeysAsync();
-#endif
 }
 
 void YubiKeyEditWidget::hardwareKeyResponse(bool found)

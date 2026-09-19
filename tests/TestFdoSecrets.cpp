@@ -27,6 +27,11 @@
 
 QTEST_GUILESS_MAIN(TestFdoSecrets)
 
+void TestFdoSecrets::initTestCase()
+{
+    QLocale::setDefault(QLocale::c());
+}
+
 void TestFdoSecrets::testDhIetf1024Sha256Aes128CbcPkcs7()
 {
     FdoSecrets::DhIetf1024Sha256Aes128CbcPkcs7 cipher(randomGen()->randomArray(128));
@@ -69,7 +74,7 @@ void TestFdoSecrets::testSpecialCharsInAttributeValue()
     e2->setTitle("titleB");
     e2->attributes()->set("testAttribute", "Abc:*+.-");
 
-    // search for custom entries via programatic API
+    // search for custom entries via programmatic API
     {
         const auto term = Collection::attributeToTerm("testAttribute", "OAuth::[test.name@gmail.com]");
         const auto res = EntrySearcher().search({term}, root.data());

@@ -29,9 +29,7 @@ NewDatabaseWizardPage::NewDatabaseWizardPage(QWidget* parent)
     m_ui->setupUi(this);
 }
 
-NewDatabaseWizardPage::~NewDatabaseWizardPage()
-{
-}
+NewDatabaseWizardPage::~NewDatabaseWizardPage() = default;
 
 /**
  * Set the database settings page widget for this wizard page.

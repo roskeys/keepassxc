@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2020 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,8 +20,10 @@
 #include "core/Config.h"
 #include "crypto/Crypto.h"
 #include "sshagent/KeeAgentSettings.h"
+#include "sshagent/OpenSSHKeyGen.h"
 #include "sshagent/SSHAgent.h"
 
+#include <QElapsedTimer>
 #include <QTest>
 
 QTEST_GUILESS_MAIN(TestSSHAgent)
@@ -29,16 +31,19 @@ QTEST_GUILESS_MAIN(TestSSHAgent)
 void TestSSHAgent::initTestCase()
 {
     QVERIFY(Crypto::init());
-    Config::createTempFileInstance();
+    QLocale::setDefault(QLocale::c());
 
-    m_agentSocketFile.setAutoRemove(true);
-    QVERIFY(m_agentSocketFile.open());
+    // Create temporary config file
+    Config::createConfigFromFile(TemporaryFile::createTempConfigFile(), {});
 
-    m_agentSocketFileName = m_agentSocketFile.fileName();
+    // default config must not enable agent
+    SSHAgent agent;
+    QVERIFY(!agent.isEnabled());
+
+    m_agentSocketFile.reset(new TemporaryFile(this));
+
+    m_agentSocketFileName = m_agentSocketFile->fileName();
     QVERIFY(!m_agentSocketFileName.isEmpty());
-
-    // let ssh-agent re-create it as a socket
-    QVERIFY(m_agentSocketFile.remove());
 
     QStringList arguments;
     arguments << "-D" << "-a" << m_agentSocketFileName;
@@ -84,13 +89,18 @@ void TestSSHAgent::initTestCase()
     QVERIFY(m_key.parsePKCS1PEM(keyData));
 }
 
+void TestSSHAgent::init()
+{
+    // Reset the config state
+    SSHAgent agent;
+    agent.setEnabled(false);
+    QString empty;
+    agent.setAuthSockOverride(empty);
+}
+
 void TestSSHAgent::testConfiguration()
 {
     SSHAgent agent;
-
-    // default config must not enable agent
-    QVERIFY(!agent.isEnabled());
-
     agent.setEnabled(true);
     QVERIFY(agent.isEnabled());
 
@@ -223,6 +233,66 @@ void TestSSHAgent::testToOpenSSHKey()
     QVERIFY(!key.publicKey().isEmpty());
 }
 
+void TestSSHAgent::testKeyGenRSA()
+{
+    SSHAgent agent;
+    agent.setEnabled(true);
+    agent.setAuthSockOverride(m_agentSocketFileName);
+
+    QVERIFY(agent.isAgentRunning());
+
+    OpenSSHKey key;
+    KeeAgentSettings settings;
+    bool keyInAgent;
+
+    QVERIFY(OpenSSHKeyGen::generateRSA(key, 2048));
+
+    QVERIFY(agent.addIdentity(key, settings, m_uuid));
+    QVERIFY(agent.checkIdentity(key, keyInAgent) && keyInAgent);
+    QVERIFY(agent.removeIdentity(key));
+    QVERIFY(agent.checkIdentity(key, keyInAgent) && !keyInAgent);
+}
+
+void TestSSHAgent::testKeyGenECDSA()
+{
+    SSHAgent agent;
+    agent.setEnabled(true);
+    agent.setAuthSockOverride(m_agentSocketFileName);
+
+    QVERIFY(agent.isAgentRunning());
+
+    OpenSSHKey key;
+    KeeAgentSettings settings;
+    bool keyInAgent;
+
+    QVERIFY(OpenSSHKeyGen::generateECDSA(key, 256));
+
+    QVERIFY(agent.addIdentity(key, settings, m_uuid));
+    QVERIFY(agent.checkIdentity(key, keyInAgent) && keyInAgent);
+    QVERIFY(agent.removeIdentity(key));
+    QVERIFY(agent.checkIdentity(key, keyInAgent) && !keyInAgent);
+}
+
+void TestSSHAgent::testKeyGenEd25519()
+{
+    SSHAgent agent;
+    agent.setEnabled(true);
+    agent.setAuthSockOverride(m_agentSocketFileName);
+
+    QVERIFY(agent.isAgentRunning());
+
+    OpenSSHKey key;
+    KeeAgentSettings settings;
+    bool keyInAgent;
+
+    QVERIFY(OpenSSHKeyGen::generateEd25519(key));
+
+    QVERIFY(agent.addIdentity(key, settings, m_uuid));
+    QVERIFY(agent.checkIdentity(key, keyInAgent) && keyInAgent);
+    QVERIFY(agent.removeIdentity(key));
+    QVERIFY(agent.checkIdentity(key, keyInAgent) && !keyInAgent);
+}
+
 void TestSSHAgent::cleanupTestCase()
 {
     if (m_agentProcess.state() != QProcess::NotRunning) {
@@ -230,6 +300,4 @@ void TestSSHAgent::cleanupTestCase()
         m_agentProcess.terminate();
         m_agentProcess.waitForFinished();
     }
-
-    m_agentSocketFile.remove();
 }

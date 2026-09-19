@@ -1,4 +1,5 @@
 /*
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -18,6 +19,7 @@
 #include "EntryModel.h"
 
 #include <QFont>
+#include <QIODevice>
 #include <QMimeData>
 #include <QPalette>
 
@@ -26,7 +28,6 @@
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "core/PasswordHealth.h"
-#include "gui/DatabaseIcons.h"
 #include "gui/Icons.h"
 #include "gui/styles/StateColorPalette.h"
 #ifdef Q_OS_MACOS
@@ -122,7 +123,7 @@ int EntryModel::columnCount(const QModelIndex& parent) const
 QVariant EntryModel::data(const QModelIndex& index, int role) const
 {
     if (!index.isValid()) {
-        return QVariant();
+        return {};
     }
 
     Entry* entry = entryFromIndex(index);
@@ -253,12 +254,8 @@ QVariant EntryModel::data(const QModelIndex& index, int role) const
         }
         case Expires:
             return entry->timeInfo().expires() ? entry->timeInfo().expiryTime()
-            // There seems to be no better way of expressing 'infinity'
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+                                               // There seems to be no better way of expressing 'infinity'
                                                : QDate(9999, 1, 1).startOfDay();
-#else
-                                               : QDateTime(QDate(9999, 1, 1));
-#endif
         case Created:
             return entry->timeInfo().creationTime();
         case Modified:
@@ -366,7 +363,7 @@ QVariant EntryModel::data(const QModelIndex& index, int role) const
         }
     }
 
-    return QVariant();
+    return {};
 }
 
 QVariant EntryModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -482,7 +479,7 @@ QMimeData* EntryModel::mimeData(const QModelIndexList& indexes) const
         return nullptr;
     }
 
-    QMimeData* data = new QMimeData();
+    auto data = new QMimeData();
     QByteArray encoded;
     QDataStream stream(&encoded, QIODevice::WriteOnly);
 

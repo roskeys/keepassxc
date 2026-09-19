@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2021 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,6 +39,13 @@ typedef uint32_t RETVAL;
 #else
 typedef unsigned long SCUINT;
 typedef long RETVAL;
+#endif
+
+// Use the ANSI functions on Windows to align with Linux/macOS
+#ifdef Q_OS_WIN
+#define SCardListReaders SCardListReadersA
+#define SCardStatus SCardStatusA
+#define SCardConnect SCardConnectA
 #endif
 
 // This namescape contains static wrappers for the smart card API
@@ -110,7 +117,7 @@ namespace
         rv = SCardListReaders(context, nullptr, mszReaders, &dwReaders);
         if (rv == SCARD_S_SUCCESS) {
             char* readhead = mszReaders;
-            // Names are seperated by a null byte
+            // Names are separated by a null byte
             // The list is terminated by two null bytes
             while (*readhead != '\0') {
                 QString reader = QString::fromUtf8(readhead);
@@ -698,7 +705,7 @@ YubiKeyInterfacePCSC::challenge(YubiKeySlot slot, const QByteArray& challenge, B
                So we wait for the user to re-present it to clear the time-out
                This condition usually only happens when the key times out after
                the initial key listing, because performTestChallenge implicitly
-               resets the key (see commnt above) */
+               resets the key (see comment above) */
             if (ret == YubiKey::ChallengeResult::YCR_SUCCESS) {
                 emit challengeCompleted();
                 return ret;
@@ -738,7 +745,7 @@ YubiKey::ChallengeResult YubiKeyInterfacePCSC::performChallenge(void* key,
      * configurations even work, some docs say avoid it.
      *
      * In fact, the Yubikey always assumes the last byte (nr. 64)
-     * and all bytes of the same value preceeding it to be padding.
+     * and all bytes of the same value preceding it to be padding.
      * This does not conform fully to PKCS7, because the the actual value
      * of the padding bytes is ignored.
      */

@@ -27,6 +27,8 @@
 /**
  * Read KDBX magic header numbers from a device.
  *
+ * Passing a null key will only read in the unprotected headers.
+ *
  * @param device input device
  * @param sig1 KDBX signature 1
  * @param sig2 KDBX signature 2

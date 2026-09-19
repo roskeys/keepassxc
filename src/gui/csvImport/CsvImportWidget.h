@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright (C) 2016 Enrico Mariotti <enricomariotti@yahoo.it>
  *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
  *
@@ -63,6 +63,7 @@ private:
     QStringListModel* m_comboModel;
     QList<QComboBox*> m_combos;
     QStringList m_columnHeader;
+    QStringList m_columnHeaderEnglish;
     QStringList m_fieldSeparatorList;
     QString m_filename;
     bool m_buildingPreview = false;

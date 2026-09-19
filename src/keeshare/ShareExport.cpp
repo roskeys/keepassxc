@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2019 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2026 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  */
 
 #include "ShareExport.h"
+#include "core/EntryPlaceholders.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
 #include "crypto/Random.h"
@@ -25,9 +26,9 @@
 #include "keeshare/KeeShare.h"
 #include "keys/PasswordKey.h"
 
+#include <../minizip/zip.h>
 #include <QBuffer>
 #include <botan/pubkey.h>
-#include <minizip/zip.h>
 
 // Compatibility with minizip-ng
 #ifdef MZ_VERSION_BUILD
@@ -42,8 +43,8 @@ namespace
     {
         for (const auto& attribute : EntryAttributes::DefaultAttributes) {
             const auto standardValue = targetEntry->attributes()->value(attribute);
-            const auto type = targetEntry->placeholderType(standardValue);
-            if (type != Entry::PlaceholderType::Reference) {
+            const auto type = EntryPlaceholders::placeholderType(standardValue);
+            if (type != EntryPlaceholders::PlaceholderType::Reference) {
                 // No reference to resolve
                 continue;
             }
@@ -53,7 +54,7 @@ namespace
                 continue;
             }
             // We could do more sophisticated **** trying to point the reference to the next in-scope reference
-            // but those cases with high propability constructed examples and very rare in real usage
+            // but those cases with high probability constructed examples and very rare in real usage
             const auto* sourceReference = sourceDb->rootGroup()->findEntryByUuid(targetEntry->uuid());
             const auto resolvedValue = sourceReference->resolveMultiplePlaceholders(standardValue);
             targetEntry->beginUpdate();
@@ -198,7 +199,7 @@ ShareObserver::Result ShareExport::intoContainer(const QString& resolvedPath,
 
         KeePass2Writer writer;
         if (!writer.writeDatabase(&buffer, targetDb.data())) {
-            qWarning("Serializing export dabase failed: %s.", writer.errorString().toLatin1().data());
+            qWarning("Serializing export database failed: %s.", writer.errorString().toLatin1().data());
             return {reference.path, ShareObserver::Result::Error, writer.errorString()};
         }
 
@@ -227,7 +228,7 @@ ShareObserver::Result ShareExport::intoContainer(const QString& resolvedPath,
     } else {
         QString error;
         if (!targetDb->saveAs(resolvedPath, Database::Atomic, {}, &error)) {
-            qWarning("Exporting dabase failed: %s.", error.toLatin1().data());
+            qWarning("Exporting database failed: %s.", error.toLatin1().data());
             return {resolvedPath, ShareObserver::Result::Error, error};
         }
     }

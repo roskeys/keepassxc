@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 KeePassXC Team <team@keepassxc.org>
+ * Copyright (C) 2025 KeePassXC Team <team@keepassxc.org>
  * Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,13 +19,13 @@
 #include "EntryView.h"
 
 #include <QAccessible>
+#include <QActionGroup>
 #include <QDrag>
 #include <QGuiApplication>
 #include <QHeaderView>
 #include <QListWidget>
 #include <QMenu>
 #include <QPainter>
-#include <QScreen>
 #include <QShortcut>
 #include <QStyledItemDelegate>
 #include <QWindow>
@@ -94,8 +94,8 @@ EntryView::EntryView(QWidget* parent)
         emit entrySelectionChanged(currentEntry());
     });
 
-    new QShortcut(Qt::CTRL + Qt::Key_F10, this, SLOT(contextMenuShortcutPressed()), nullptr, Qt::WidgetShortcut);
-    new QShortcut(Qt::CTRL + Qt::SHIFT + Qt::Key_J, this, SLOT(jumpToGroupShortcut()), nullptr, Qt::WidgetShortcut);
+    new QShortcut(Qt::CTRL | Qt::Key_F10, this, SLOT(contextMenuShortcutPressed()), nullptr, Qt::WidgetShortcut);
+    new QShortcut(Qt::CTRL | Qt::SHIFT | Qt::Key_J, this, SLOT(jumpToGroupShortcut()), nullptr, Qt::WidgetShortcut);
 
     resetViewToDefaults();
 
