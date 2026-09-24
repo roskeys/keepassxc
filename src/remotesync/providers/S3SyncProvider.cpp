@@ -9,7 +9,7 @@
 #include <QNetworkRequest>
 #include <QSslError>
 #include <QUrl>
-#include "core/NetworkManager.h"
+#include "networking/NetworkManager.h"
 
 static void signS3Request(QNetworkRequest& req,
                           const QString& method,

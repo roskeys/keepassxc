@@ -28,6 +28,6 @@ if(WITH_XC_REMOTESYNC)
     )
 
     add_library(remotesync STATIC ${remotesync_SOURCES} ${remotesync_HEADERS} ${remotesync_UIS})
-    target_link_libraries(remotesync PUBLIC Qt6::Core Qt6::Network Qt6::Widgets Qt6::Concurrent)
+    target_link_libraries(remotesync PUBLIC Qt6::Core Qt6::Network Qt6::Widgets Qt6::Concurrent Qt6::Xml)
     target_include_directories(remotesync PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_BINARY_DIR})
 endif()

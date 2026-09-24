@@ -10,7 +10,7 @@
 #include <QNetworkRequest>
 #include <QUrl>
 #include <QUrlQuery>
-#include "core/NetworkManager.h"
+#include "networking/NetworkManager.h"
 
 GoogleDriveSyncProvider::GoogleDriveSyncProvider(QObject* parent)
     : ISyncProvider(parent)

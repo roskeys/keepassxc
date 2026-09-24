@@ -8,7 +8,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
-#include "core/NetworkManager.h"
+#include "networking/NetworkManager.h"
 
 DropboxSyncProvider::DropboxSyncProvider(QObject* parent)
     : ISyncProvider(parent)
