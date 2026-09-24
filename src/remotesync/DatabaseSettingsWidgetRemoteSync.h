@@ -29,6 +29,7 @@ private slots:
     void onTestWebDavConnection();
     void onTestDropboxConnection();
     void onTestGoogleDriveConnection();
+    void onTestOneDriveConnection();
     void onTestSftpConnection();
     void onTestS3Connection();
     void onTestGitConnection();

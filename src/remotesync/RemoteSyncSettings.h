@@ -83,6 +83,19 @@ struct GoogleDriveSettings
     QString fullRemoteUrl(const QString& defaultFileName = {}) const;
 };
 
+struct OneDriveSettings
+{
+    bool enabled = false;
+    QString accessToken;  // OAuth Bearer Token (auto-refreshed or manual)
+    QString refreshToken; // OAuth Refresh Token (permanent)
+    QString clientId;     // Application (client) ID
+    QString clientSecret; // Client Secret (optional for public/desktop client)
+    QString remotePath;   // File name or path (e.g. passwords.kdbx or Documents/passwords.kdbx)
+    QString driveId;      // Optional Drive ID (defaults to root/default drive)
+
+    QString fullRemoteUrl(const QString& defaultFileName = {}) const;
+};
+
 struct RemoteSyncSettings
 {
     enum class Protocol
@@ -90,6 +103,7 @@ struct RemoteSyncSettings
         WebDAV,
         Dropbox,
         GoogleDrive,
+        OneDrive,
         SFTP,
         S3,
         FTPS,
@@ -99,6 +113,7 @@ struct RemoteSyncSettings
     WebDavSettings webdav;
     DropboxSettings dropbox;
     GoogleDriveSettings googleDrive;
+    OneDriveSettings oneDrive;
     SftpSettings sftp;
     S3Settings s3;
     GitSettings git;
@@ -119,7 +134,7 @@ struct RemoteSyncSettings
 
     bool isAnyEnabled() const
     {
-        return webdav.enabled || dropbox.enabled || googleDrive.enabled || sftp.enabled || s3.enabled || git.enabled;
+        return webdav.enabled || dropbox.enabled || googleDrive.enabled || oneDrive.enabled || sftp.enabled || s3.enabled || git.enabled;
     }
 
     QString fullRemoteUrl(const QString& defaultFileName = {}) const;

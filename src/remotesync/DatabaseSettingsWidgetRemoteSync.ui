@@ -408,6 +408,155 @@
       </layout>
      </widget>
 
+     <!-- Tab: OneDrive -->
+     <widget class="QWidget" name="tabOneDrive">
+      <attribute name="title">
+       <string>OneDrive</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutOneDrive">
+       <item>
+        <widget class="QCheckBox" name="checkOneDriveEnabled">
+         <property name="text">
+          <string>Enable OneDrive Synchronization</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupOneDriveSettings">
+         <property name="title">
+          <string>OneDrive Configuration</string>
+         </property>
+         <layout class="QFormLayout" name="formLayoutOneDrive">
+          <item row="0" column="0">
+           <widget class="QLabel" name="labelOneDriveClientId">
+            <property name="text">
+             <string>Client ID:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="editOneDriveClientId">
+            <property name="placeholderText">
+             <string>Application (client) ID from Azure Portal</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelOneDriveClientSecret">
+            <property name="text">
+             <string>Client Secret (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="editOneDriveClientSecret">
+            <property name="placeholderText">
+             <string>Leave blank for public/native client</string>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelOneDriveRefreshToken">
+            <property name="text">
+             <string>Refresh Token (Permanent):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLineEdit" name="editOneDriveRefreshToken">
+            <property name="placeholderText">
+             <string>OAuth 2.0 refresh token</string>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="labelOneDriveToken">
+            <property name="text">
+             <string>Access Token (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLineEdit" name="editOneDriveToken">
+            <property name="placeholderText">
+             <string>Leave blank to auto-generate from Refresh Token</string>
+            </property>
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="labelOneDriveRemotePath">
+            <property name="text">
+             <string>Remote File Path:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QLineEdit" name="editOneDriveRemotePath">
+            <property name="placeholderText">
+             <string>passwords.kdbx or Documents/passwords.kdbx</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="labelOneDriveDriveId">
+            <property name="text">
+             <string>Drive ID (optional):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QLineEdit" name="editOneDriveDriveId">
+            <property name="placeholderText">
+             <string>Leave blank for default personal or business drive</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="layoutTestOneDrive">
+         <item>
+          <widget class="QPushButton" name="buttonTestOneDrive">
+           <property name="text">
+            <string>Test OneDrive Connection</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="labelTestOneDriveResult">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacerOneDrive">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+
      <!-- Tab 3: SFTP (SSH) -->
      <widget class="QWidget" name="tabSftp">
       <attribute name="title">

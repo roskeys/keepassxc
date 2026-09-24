@@ -184,6 +184,11 @@ if(KPXC_FEATURE_NETWORK)
         LIBS ${TEST_LIBRARIES})
 endif()
 
+if(WITH_XC_REMOTESYNC)
+    add_unit_test(NAME testremotesync SOURCES TestRemoteSync.cpp
+        LIBS remotesync testsupport ${TEST_LIBRARIES})
+endif()
+
 if(WITH_GUI_TESTS)
     add_subdirectory(gui)
 endif()
