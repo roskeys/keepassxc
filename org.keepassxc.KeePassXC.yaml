@@ -1,0 +1,163 @@
+app-id: org.keepassxc.KeePassXC
+runtime: org.kde.Platform
+runtime-version: '6.8'
+sdk: org.kde.Sdk
+command: keepassxc-wrapper
+finish-args:
+  # Display servers
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Notifications & desktop services
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.ScreenSaver
+  - --system-talk-name=org.freedesktop.login1
+  - --talk-name=org.gnome.ScreenSaver
+  - --talk-name=org.gnome.SessionManager
+  - --talk-name=org.gnome.SessionManager.Presence
+  - --talk-name=com.canonical.Unity.Session
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # Secret Service
+  - --own-name=org.freedesktop.secrets
+  # Network (RemoteSync, Favicons)
+  - --share=network
+  # Hardware Keys / Smartcards / SSH
+  - --device=all
+  - --socket=pcsc
+  - --socket=ssh-auth
+  - --env=SSH_AUTH_SOCK=$SSH_AUTH_SOCK
+  # Filesystem access
+  - --filesystem=host
+  - --filesystem=/tmp
+  - --filesystem=xdg-run/gvfs
+
+cleanup:
+  - '*.a'
+  - '*.h'
+  - '*.la'
+  - /include
+  - /lib/pkgconfig
+  - /share/doc
+  - /share/man
+
+modules:
+  - name: minizip
+    subdir: contrib/minizip
+    sources:
+      - type: git
+        url: https://github.com/madler/zlib
+        tag: v1.3.2
+        commit: da607da739fa6047df13e66a2af6b8bec7c2a498
+      - type: script
+        dest: contrib/minizip/
+        dest-filename: autogen.sh
+        commands:
+          - "sed -i '/crypt\\.h/a \\\\tints.h \\\\' Makefile.am"
+          - autoreconf -ifv
+
+  - name: libargon2
+    no-autogen: true
+    make-args:
+      - PREFIX=/app
+      - OPTTARGET=none
+      - LIBRARY_REL=lib
+    make-install-args:
+      - PREFIX=/app
+      - OPTTARGET=none
+      - LIBRARY_REL=lib
+    sources:
+      - type: git
+        url: https://github.com/P-H-C/phc-winner-argon2.git
+        tag: '20190702'
+        commit: 62358ba2123abd17fccf2a108a301d4b52c01a7c
+    post-install:
+      - install -Dm644 -t /app/share/licenses/libargon2 LICENSE
+    cleanup:
+      - /bin
+
+  - name: botan
+    buildsystem: simple
+    build-commands:
+      - "python3 ./configure.py \
+          --disable-cc-tests \
+          --disable-static-library \
+          --build-targets=shared \
+          --prefix=/app \
+          --with-zlib \
+          --without-documentation"
+      - make -j${FLATPAK_BUILDER_N_JOBS}
+      - make install
+    sources:
+      - type: archive
+        url: https://botan.randombit.net/releases/Botan-3.7.1.tar.xz
+        sha256: fc0620463461caaea8e60f06711d7e437a3ad1eebd6de4ac29c14bbd901ccd1b
+    post-install:
+      - install -Dm644 -t /app/share/licenses/botan license.txt
+
+  - name: pcsclite
+    config-opts:
+      - --sbindir=/app/bin
+      - --disable-polkit
+    sources:
+      - type: git
+        url: https://github.com/LudovicRousseau/PCSC
+        tag: 2.4.1
+        commit: 5a96d5b1c6a3658c581a793d01f6a00e1a44e360
+    cleanup:
+      - /bin
+    post-install:
+      - install -Dm644 -t /app/share/licenses/pcsclite COPYING
+
+  - name: libusb
+    buildsystem: autotools
+    config-opts:
+      - --disable-static
+      - --disable-udev
+    sources:
+      - type: archive
+        url: https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2
+        sha256: ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575
+
+  - name: keyutils
+    no-autogen: true
+    make-args:
+      - NO_GLIBC_KEYERR=1
+      - CFLAGS=-O2 -fPIC
+    make-install-args:
+      - NO_GLIBC_KEYERR=1
+      - PREFIX=/app
+      - LIBDIR=/app/lib
+      - USRLIBDIR=/app/lib
+      - INCLUDEDIR=/app/include
+      - SBINDIR=/app/sbin
+      - BINDIR=/app/bin
+      - MANDIR=/app/share/man
+      - SHAREDIR=/app/share
+    sources:
+      - type: archive
+        url: https://git.kernel.org/pub/scm/linux/kernel/git/dhowells/keyutils.git/snapshot/keyutils-1.6.3.tar.gz
+        sha256: a61d5706136ae4c05bd48f86186bcfdbd88dd8bd5107e3e195c924cfc1b39bb4
+
+  - name: keepassxc
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DKEEPASSXC_BUILD_TYPE=Release
+      - -DOVERRIDE_VERSION=2.8.0
+      - -DKEEPASSXC_DIST_TYPE=Flatpak
+      - -DWITH_TESTS=OFF
+      - -DKPXC_FEATURE_DOCS=OFF
+      - -DCMAKE_INSTALL_LIBDIR=lib
+      - -DKPXC_FEATURE_UPDATES=OFF
+      - -DWITH_XC_REMOTESYNC=ON
+    sources:
+      - type: dir
+        path: .
+    post-install:
+      - install -Dm755 ./utils/keepassxc-flatpak-wrapper.sh /app/bin/keepassxc-wrapper
+      - |
+        for f in COPYING LICENSE*; do
+          install -Dm644 $f /app/share/licenses/org.keepassxc.KeePassXC/$f
+        done
+    cleanup:
+      - /share/man

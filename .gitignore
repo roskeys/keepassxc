@@ -33,3 +33,5 @@ out/
 vcpkg_installed*/
 credentials/
 .xauthority
+.flatpak-builder
+build-flatpak/
