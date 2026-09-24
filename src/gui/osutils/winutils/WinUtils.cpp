@@ -22,7 +22,7 @@
 #include <QSettings>
 #include <QWindow>
 
-#include <Windows.h>
+#include <windows.h>
 #undef MessageBox
 
 QPointer<WinUtils> WinUtils::m_instance = nullptr;

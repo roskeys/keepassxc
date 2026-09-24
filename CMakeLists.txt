@@ -78,31 +78,25 @@ if(NOT KPXC_FEATURE_NETWORK AND KPXC_FEATURE_UPDATES)
     set(KPXC_FEATURE_UPDATES OFF)
 endif()
 
+# Initialize project
+project(KeePassXC)
+set(APP_ID "org.keepassxc.${PROJECT_NAME}")
+
 # FDO Secrets is only available on Linux
-if(NOT UNIX OR APPLE OR HAIKU)
-	set(KPXC_FEATURE_FDOSECRETS OFF)
+if(WIN32 OR MINGW OR NOT UNIX OR APPLE OR HAIKU)
+	set(KPXC_FEATURE_FDOSECRETS OFF CACHE BOOL "" FORCE)
 endif()
 
 # Define feature summaries
 add_feature_info("Browser" KPXC_FEATURE_BROWSER "Browser integration and passkeys support")
 add_feature_info("SSH Agent" KPXC_FEATURE_SSHAGENT "SSH Agent integration")
-if(UNIX AND NOT APPLE)
+if(UNIX AND NOT APPLE AND NOT WIN32)
     add_feature_info("Secret Service" KPXC_FEATURE_FDOSECRETS "Replace system keyring with freedesktop.org Secret Service integration")
 endif()
 add_feature_info("Remote Sync" WITH_XC_REMOTESYNC "Remote database sync via WebDAV/SFTP/S3")
 add_feature_info("Networking" KPXC_FEATURE_NETWORK "Code that can reach out to external networks is included (e.g. downloading icons)")
 add_feature_info("Update Checks" KPXC_FEATURE_UPDATES "Periodic update checks can be performed")
 add_feature_info("Documentation" KPXC_FEATURE_DOCS "Offline documentation")
-
-# VCPKG features (must come before project())
-if(WITH_BUILD_QT)
-    list(APPEND VCPKG_MANIFEST_FEATURES qt)
-    unset(ENV{Qt6_DIR})
-endif()
-
-# Initialize project
-project(KeePassXC)
-set(APP_ID "org.keepassxc.${PROJECT_NAME}")
 
 # Retrieve git HEAD revision hash
 set(GIT_HEAD_OVERRIDE "" CACHE STRING "Manually set the Git HEAD hash when missing (eg, when no .git folder exists)")

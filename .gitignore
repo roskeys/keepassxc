@@ -35,3 +35,5 @@ credentials/
 .xauthority
 .flatpak-builder
 build-flatpak/
+build-win64/
+dist-win64/

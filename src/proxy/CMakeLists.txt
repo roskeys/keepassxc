@@ -42,6 +42,6 @@ if(KPXC_FEATURE_BROWSER)
     endif()
 
     if(WIN32)
-      target_link_libraries(keepassxc-proxy Wtsapi32.lib Ws2_32.lib)
+      target_link_libraries(keepassxc-proxy wtsapi32 ws2_32)
     endif()
 endif()

@@ -3,7 +3,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QTemporaryFile>
+#include <QTemporaryDir>
 #include <QUuid>
 #include "SyncProviderFactory.h"
 #include "core/Database.h"
@@ -340,16 +340,15 @@ void RemoteSyncManager::pullFromProviders(int index, std::function<void(bool suc
             return;
         }
 
-        auto* tempFile = new QTemporaryFile(this);
-        if (!tempFile->open()) {
-            delete tempFile;
+        auto* tempDir = new QTemporaryDir();
+        if (!tempDir->isValid()) {
+            delete tempDir;
             pullFromProviders(index + 1, completion);
             return;
         }
-        QString tempPath = tempFile->fileName();
-        tempFile->close();
+        QString tempPath = tempDir->filePath(QStringLiteral("remote_download.kdbx"));
 
-        currentEntry.provider->downloadFile(remotePath, tempPath, [this, index, tempFile, tempPath, metaResult, completion](const SyncResult& dlResult) {
+        currentEntry.provider->downloadFile(remotePath, tempPath, [this, index, tempDir, tempPath, metaResult, completion](const SyncResult& dlResult) {
             auto& dlEntry = m_providers[index];
 
             if (dlResult.isSuccess() && m_db) {
@@ -366,7 +365,7 @@ void RemoteSyncManager::pullFromProviders(int index, std::function<void(bool suc
                 }
             }
 
-            delete tempFile;
+            delete tempDir;
             pullFromProviders(index + 1, completion);
         });
     });
@@ -405,41 +404,74 @@ void RemoteSyncManager::pushDatabase(std::function<void(bool success)> completio
 
     m_state = SyncState::Pushing;
 
-    // Save database to a temporary local file
-    auto* localTemp = new QTemporaryFile(this);
-    if (!localTemp->open()) {
+    // Save modified in-memory database to disk first if it has a filePath
+    if (m_db->isModified() && !m_db->filePath().isEmpty() && QFile::exists(m_db->filePath())) {
+        QString saveErr;
+        if (!m_db->save(Database::Atomic, QString(), &saveErr)) {
+            qWarning() << "RemoteSyncManager: Failed to save modified database before push:" << saveErr;
+        }
+    }
+
+    // Prepare database snapshot in a unique temporary directory
+    auto* tempDir = new QTemporaryDir();
+    if (!tempDir->isValid()) {
         m_state = SyncState::Idle;
-        emit syncStatusChanged(SyncState::Error, tr("Cannot create local temporary file for sync"));
-        delete localTemp;
+        QString err = tr("Cannot create local temporary directory for sync: %1").arg(tempDir->errorString());
+        emit syncStatusChanged(SyncState::Error, err);
+        emit syncProgress(100, err);
+        QTimer::singleShot(3000, this, [this]() { emit syncProgress(-1, QString()); });
+        delete tempDir;
         if (completion) {
             completion(false);
         }
         return;
     }
 
-    QString localTempPath = localTemp->fileName();
-    localTemp->close();
-    // Remove the 0-byte file created by QTemporaryFile::open() so QFile::copy succeeds
-    QFile::remove(localTempPath);
+    QString fileName = QFileInfo(m_db->filePath()).fileName();
+    if (fileName.isEmpty()) {
+        fileName = QStringLiteral("database.kdbx");
+    }
+    QString localTempPath = tempDir->filePath(fileName);
 
     bool saved = false;
+    QString copyError;
     if (!m_db->filePath().isEmpty() && QFile::exists(m_db->filePath())) {
-        saved = QFile::copy(m_db->filePath(), localTempPath);
-    } else {
+        QFile srcFile(m_db->filePath());
+        saved = srcFile.copy(localTempPath);
+        if (!saved) {
+            copyError = srcFile.errorString();
+            qWarning() << "RemoteSyncManager: QFile::copy failed from" << m_db->filePath()
+                       << "to" << localTempPath << ":" << copyError;
+        }
+    }
+
+    if (!saved) {
         QString oldFilePath = m_db->filePath();
-        saved = m_db->saveAs(localTempPath, Database::DirectWrite);
+        QString saveAsErr;
+        saved = m_db->saveAs(localTempPath, Database::DirectWrite, QString(), &saveAsErr);
         if (!oldFilePath.isEmpty()) {
             m_db->setFilePath(oldFilePath);
+        }
+        if (!saved) {
+            if (copyError.isEmpty()) {
+                copyError = saveAsErr;
+            } else if (!saveAsErr.isEmpty()) {
+                copyError += QStringLiteral("; ") + saveAsErr;
+            }
+            qWarning() << "RemoteSyncManager: Database::saveAs failed to" << localTempPath << ":" << saveAsErr;
         }
     }
 
     if (!saved) {
         m_state = SyncState::Idle;
         QString saveErr = tr("Failed to prepare database snapshot for upload");
+        if (!copyError.isEmpty()) {
+            saveErr += QStringLiteral(" (%1)").arg(copyError);
+        }
         emit syncStatusChanged(SyncState::Error, saveErr);
         emit syncProgress(100, saveErr);
         QTimer::singleShot(3000, this, [this]() { emit syncProgress(-1, QString()); });
-        delete localTemp;
+        delete tempDir;
         if (completion) {
             completion(false);
         }
@@ -448,8 +480,8 @@ void RemoteSyncManager::pushDatabase(std::function<void(bool success)> completio
 
     auto failedTargets = std::make_shared<QStringList>();
     auto succeededTargets = std::make_shared<QStringList>();
-    pushToProviders(0, localTempPath, [this, localTemp, failedTargets, succeededTargets, completion](bool) {
-        delete localTemp;
+    pushToProviders(0, localTempPath, [this, tempDir, failedTargets, succeededTargets, completion](bool) {
+        delete tempDir;
         m_state = SyncState::Idle;
 
         if (failedTargets->isEmpty()) {

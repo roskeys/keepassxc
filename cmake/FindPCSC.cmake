@@ -49,7 +49,7 @@ if(NOT PCSC_FOUND)
       PATH_SUFFIXES PCSC)
 
    # MAC library is PCSC, Windows library is WinSCard
-   find_library(PCSC_LIBRARIES NAMES pcsclite libpcsclite WinSCard PCSC
+   find_library(PCSC_LIBRARIES NAMES winscard WinSCard pcsclite libpcsclite PCSC
       HINTS   
          ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}
          ${WINSDKROOTC_LIB})

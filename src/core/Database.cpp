@@ -37,7 +37,7 @@
 #include <algorithm>
 
 #ifdef Q_OS_WIN
-#include <Windows.h>
+#include <windows.h>
 #endif
 
 QHash<QUuid, QPointer<Database>> Database::s_uuidMap;

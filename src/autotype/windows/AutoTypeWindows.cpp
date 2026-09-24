@@ -21,7 +21,7 @@
 #include "gui/osutils/OSUtils.h"
 #include "gui/osutils/winutils/WinUtils.h"
 
-#include <VersionHelpers.h>
+#include <versionhelpers.h>
 
 #define HOTKEY_ID 1
 #define MAX_WINDOW_TITLE_LENGTH 1024
