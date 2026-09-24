@@ -5,6 +5,7 @@ if(WITH_XC_REMOTESYNC)
         providers/WebDavSyncProvider.cpp
         providers/DropboxSyncProvider.cpp
         providers/GoogleDriveSyncProvider.cpp
+        providers/OneDriveSyncProvider.cpp
         providers/SftpSyncProvider.cpp
         providers/S3SyncProvider.cpp
         providers/GitSyncProvider.cpp
@@ -20,6 +21,7 @@ if(WITH_XC_REMOTESYNC)
         providers/WebDavSyncProvider.h
         providers/DropboxSyncProvider.h
         providers/GoogleDriveSyncProvider.h
+        providers/OneDriveSyncProvider.h
         providers/SftpSyncProvider.h
         providers/S3SyncProvider.h
         providers/GitSyncProvider.h

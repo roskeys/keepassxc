@@ -48,6 +48,27 @@ In the *Google Drive* tab:
 * (Optional) Enter a *Folder ID* from your browser address bar to save to a specific Drive folder.
 * Click *Test Google Drive Connection*.
 
+=== OneDrive Synchronization
+OneDrive synchronization connects directly to Microsoft Graph API (`https://graph.microsoft.com/v1.0`), supporting personal OneDrive accounts as well as OneDrive for Business / SharePoint document libraries.
+
+==== Step 1: Register an Application in Azure / Microsoft Entra
+1. Go to the https://entra.microsoft.com/[Microsoft Entra admin center] or Azure Portal App Registrations.
+2. Click *New registration*:
+   Set name to `KeePassXC Sync`, choose *Accounts in any organizational directory and personal Microsoft accounts*, and set the redirect URI to Mobile/desktop app: `https://login.microsoftonline.com/common/oauth2/nativeclient`.
+3. Note the *Application (client) ID*.
+4. In *API permissions*, add Microsoft Graph delegated permissions for `Files.ReadWrite` and `offline_access`.
+
+==== Step 2: Generate Permanent Refresh Token
+Authorize via browser using your Client ID and redirect URI, then exchange the authorization code for a `refresh_token` at `https://login.microsoftonline.com/common/oauth2/v2.0/token`.
+
+==== Step 3: Configure KeePassXC
+In the *OneDrive* tab:
+* Check *Enable OneDrive Synchronization*.
+* Enter your *Client ID*, *Refresh Token*, and optional *Client Secret*.
+* Specify *Remote File Path* (e.g. `passwords.kdbx` or `Documents/passwords.kdbx`).
+* (Optional) Specify *Drive ID* for specific SharePoint / business drives.
+* Click *Test OneDrive Connection*.
+
 === Dropbox Synchronization
 Dropbox supports scoped Personal Access Tokens or OAuth 2.0 Bearer tokens.
 

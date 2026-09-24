@@ -41,6 +41,15 @@ static const QString KEY_GDRIVE_CLIENT_SECRET = QStringLiteral("KPXC_REMOTESYNC_
 static const QString KEY_GDRIVE_REMOTEPATH = QStringLiteral("KPXC_REMOTESYNC_GDRIVE_REMOTEPATH");
 static const QString KEY_GDRIVE_FOLDERID = QStringLiteral("KPXC_REMOTESYNC_GDRIVE_FOLDERID");
 
+// OneDrive Keys
+static const QString KEY_ONEDRIVE_ENABLED = QStringLiteral("KPXC_REMOTESYNC_ONEDRIVE_ENABLED");
+static const QString KEY_ONEDRIVE_TOKEN = QStringLiteral("KPXC_REMOTESYNC_ONEDRIVE_TOKEN");
+static const QString KEY_ONEDRIVE_REFRESH_TOKEN = QStringLiteral("KPXC_REMOTESYNC_ONEDRIVE_REFRESH_TOKEN");
+static const QString KEY_ONEDRIVE_CLIENT_ID = QStringLiteral("KPXC_REMOTESYNC_ONEDRIVE_CLIENT_ID");
+static const QString KEY_ONEDRIVE_CLIENT_SECRET = QStringLiteral("KPXC_REMOTESYNC_ONEDRIVE_CLIENT_SECRET");
+static const QString KEY_ONEDRIVE_REMOTEPATH = QStringLiteral("KPXC_REMOTESYNC_ONEDRIVE_REMOTEPATH");
+static const QString KEY_ONEDRIVE_DRIVE_ID = QStringLiteral("KPXC_REMOTESYNC_ONEDRIVE_DRIVE_ID");
+
 // SFTP Keys
 static const QString KEY_SFTP_ENABLED = QStringLiteral("KPXC_REMOTESYNC_SFTP_ENABLED");
 static const QString KEY_SFTP_HOST = QStringLiteral("KPXC_REMOTESYNC_SFTP_HOST");
@@ -169,6 +178,21 @@ QString GoogleDriveSettings::fullRemoteUrl(const QString& defaultFileName) const
     return QStringLiteral("googledrive:/%1").arg(path.startsWith(QLatin1Char('/')) ? path : QLatin1Char('/') + path);
 }
 
+QString OneDriveSettings::fullRemoteUrl(const QString& defaultFileName) const
+{
+    QString path = remotePath.trimmed();
+    if (path.isEmpty()) {
+        path = defaultFileName.isEmpty() ? QStringLiteral("passwords.kdbx") : defaultFileName;
+    }
+    if (!path.startsWith(QLatin1Char('/'))) {
+        path.prepend(QLatin1Char('/'));
+    }
+    if (!driveId.trimmed().isEmpty()) {
+        return QStringLiteral("onedrive://%1%2").arg(driveId.trimmed(), path);
+    }
+    return QStringLiteral("onedrive:%1").arg(path);
+}
+
 QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
 {
     if (webdav.enabled) {
@@ -179,6 +203,9 @@ QString RemoteSyncSettings::fullRemoteUrl(const QString& defaultFileName) const
     }
     if (googleDrive.enabled) {
         return googleDrive.fullRemoteUrl(defaultFileName);
+    }
+    if (oneDrive.enabled) {
+        return oneDrive.fullRemoteUrl(defaultFileName);
     }
     if (sftp.enabled) {
         return sftp.fullRemoteUrl(defaultFileName);
@@ -199,6 +226,8 @@ QString RemoteSyncSettings::protocolToString(Protocol p)
         return QStringLiteral("dropbox");
     case Protocol::GoogleDrive:
         return QStringLiteral("googledrive");
+    case Protocol::OneDrive:
+        return QStringLiteral("onedrive");
     case Protocol::SFTP:
         return QStringLiteral("sftp");
     case Protocol::S3:
@@ -220,6 +249,9 @@ RemoteSyncSettings::Protocol RemoteSyncSettings::protocolFromString(const QStrin
     }
     if (str == QLatin1String("googledrive")) {
         return Protocol::GoogleDrive;
+    }
+    if (str == QLatin1String("onedrive")) {
+        return Protocol::OneDrive;
     }
     if (str == QLatin1String("sftp")) {
         return Protocol::SFTP;
@@ -296,6 +328,17 @@ RemoteSyncSettings RemoteSyncSettings::fromDatabase(const Database* db)
         s.googleDrive.clientSecret = cd->value(KEY_GDRIVE_CLIENT_SECRET);
         s.googleDrive.remotePath = cd->value(KEY_GDRIVE_REMOTEPATH);
         s.googleDrive.folderId = cd->value(KEY_GDRIVE_FOLDERID);
+    }
+
+    // 4. OneDrive Settings
+    if (cd->contains(KEY_ONEDRIVE_ENABLED)) {
+        s.oneDrive.enabled = (cd->value(KEY_ONEDRIVE_ENABLED) == QLatin1String("true"));
+        s.oneDrive.accessToken = cd->value(KEY_ONEDRIVE_TOKEN);
+        s.oneDrive.refreshToken = cd->value(KEY_ONEDRIVE_REFRESH_TOKEN);
+        s.oneDrive.clientId = cd->value(KEY_ONEDRIVE_CLIENT_ID);
+        s.oneDrive.clientSecret = cd->value(KEY_ONEDRIVE_CLIENT_SECRET);
+        s.oneDrive.remotePath = cd->value(KEY_ONEDRIVE_REMOTEPATH);
+        s.oneDrive.driveId = cd->value(KEY_ONEDRIVE_DRIVE_ID);
     }
 
     // 3. SFTP Settings
@@ -418,6 +461,15 @@ void RemoteSyncSettings::saveToDatabase(Database* db) const
     cd->set(KEY_GDRIVE_CLIENT_SECRET, googleDrive.clientSecret);
     cd->set(KEY_GDRIVE_REMOTEPATH, googleDrive.remotePath);
     cd->set(KEY_GDRIVE_FOLDERID, googleDrive.folderId);
+
+    // OneDrive
+    cd->set(KEY_ONEDRIVE_ENABLED, oneDrive.enabled ? QStringLiteral("true") : QStringLiteral("false"));
+    cd->set(KEY_ONEDRIVE_TOKEN, oneDrive.accessToken);
+    cd->set(KEY_ONEDRIVE_REFRESH_TOKEN, oneDrive.refreshToken);
+    cd->set(KEY_ONEDRIVE_CLIENT_ID, oneDrive.clientId);
+    cd->set(KEY_ONEDRIVE_CLIENT_SECRET, oneDrive.clientSecret);
+    cd->set(KEY_ONEDRIVE_REMOTEPATH, oneDrive.remotePath);
+    cd->set(KEY_ONEDRIVE_DRIVE_ID, oneDrive.driveId);
 
     // SFTP
     cd->set(KEY_SFTP_ENABLED, sftp.enabled ? QStringLiteral("true") : QStringLiteral("false"));

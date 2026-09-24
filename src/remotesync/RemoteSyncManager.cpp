@@ -91,6 +91,13 @@ void RemoteSyncManager::initProviders()
         m_providers.append({RemoteSyncSettings::Protocol::GoogleDrive, QStringLiteral("Google Drive"), p, QString()});
     }
 
+    // 4. OneDrive Provider
+    if (m_settings.oneDrive.enabled && (!m_settings.oneDrive.accessToken.isEmpty() || !m_settings.oneDrive.refreshToken.isEmpty())) {
+        auto* p = SyncProviderFactory::create(RemoteSyncSettings::Protocol::OneDrive, this);
+        p->configure(m_settings);
+        m_providers.append({RemoteSyncSettings::Protocol::OneDrive, QStringLiteral("OneDrive"), p, QString()});
+    }
+
     // 4. SFTP Provider
     if (m_settings.sftp.enabled && !m_settings.sftp.host.isEmpty()) {
         auto* p = SyncProviderFactory::create(RemoteSyncSettings::Protocol::SFTP, this);
@@ -300,6 +307,12 @@ void RemoteSyncManager::pullFromProviders(int index, std::function<void(bool suc
     case RemoteSyncSettings::Protocol::Dropbox:
         remotePath = m_settings.dropbox.remotePath;
         break;
+    case RemoteSyncSettings::Protocol::GoogleDrive:
+        remotePath = m_settings.googleDrive.remotePath;
+        break;
+    case RemoteSyncSettings::Protocol::OneDrive:
+        remotePath = m_settings.oneDrive.remotePath;
+        break;
     case RemoteSyncSettings::Protocol::SFTP:
         remotePath = m_settings.sftp.remotePath;
         break;
@@ -492,6 +505,12 @@ void RemoteSyncManager::pushToProviders(int index,
     switch (entry.protocol) {
     case RemoteSyncSettings::Protocol::Dropbox:
         remotePath = m_settings.dropbox.remotePath;
+        break;
+    case RemoteSyncSettings::Protocol::GoogleDrive:
+        remotePath = m_settings.googleDrive.remotePath;
+        break;
+    case RemoteSyncSettings::Protocol::OneDrive:
+        remotePath = m_settings.oneDrive.remotePath;
         break;
     case RemoteSyncSettings::Protocol::SFTP:
         remotePath = m_settings.sftp.remotePath;

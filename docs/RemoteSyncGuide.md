@@ -7,12 +7,13 @@ KeePassXC provides built-in Remote Database Synchronization, allowing you to aut
 ## Table of Contents
 1. [Overview & Sync Behavior](#overview--sync-behavior)
 2. [Google Drive Synchronization](#google-drive-synchronization)
-3. [Dropbox Synchronization](#dropbox-synchronization)
-4. [WebDAV (Nextcloud / ownCloud / Synology)](#webdav-nextcloud--owncloud--synology)
-5. [SFTP (SSH File Transfer Protocol)](#sftp-ssh-file-transfer-protocol)
-6. [Amazon S3 / S3-Compatible Storage (MinIO, Wasabi, Backblaze B2)](#amazon-s3--s3-compatible-storage)
-7. [Git Repository Synchronization (GitHub / GitLab / Self-Hosted)](#git-repository-synchronization)
-8. [General Settings & Troubleshooting](#general-settings--troubleshooting)
+3. [OneDrive Synchronization](#onedrive-synchronization)
+4. [Dropbox Synchronization](#dropbox-synchronization)
+5. [WebDAV (Nextcloud / ownCloud / Synology)](#webdav-nextcloud--owncloud--synology)
+6. [SFTP (SSH File Transfer Protocol)](#sftp-ssh-file-transfer-protocol)
+7. [Amazon S3 / S3-Compatible Storage (MinIO, Wasabi, Backblaze B2)](#amazon-s3--s3-compatible-storage)
+8. [Git Repository Synchronization (GitHub / GitLab / Self-Hosted)](#git-repository-synchronization)
+9. [General Settings & Troubleshooting](#general-settings--troubleshooting)
 
 ---
 
@@ -76,6 +77,58 @@ In the **Google Drive** tab:
 - **Remote File Name**: e.g., `passwords.kdbx`
 - **Folder ID (optional)**: Leave blank to store in root ("My Drive"), or paste the alphanumeric folder ID from your browser's address bar when browsing that folder on drive.google.com.
 - Click **Test Google Drive Connection** to verify.
+
+---
+
+## OneDrive Synchronization
+
+OneDrive synchronization connects directly to Microsoft Graph API (`https://graph.microsoft.com/v1.0`), supporting personal OneDrive accounts as well as OneDrive for Business / SharePoint document libraries.
+
+### Step 1: Register an Application in Azure / Microsoft Entra
+1. Go to the [Microsoft Entra admin center](https://entra.microsoft.com/) or [Azure Portal - App Registrations](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+2. Click **New registration**:
+   - **Name**: `KeePassXC Sync` (or any friendly name).
+   - **Supported account types**: Select **Accounts in any organizational directory (Any Microsoft Entra ID tenant - Multitenant) and personal Microsoft accounts (e.g. Skype, Xbox)**.
+   - **Redirect URI**: Select **Mobile and desktop applications** (or Web), and enter:
+     ```text
+     https://login.microsoftonline.com/common/oauth2/nativeclient
+     ```
+3. Click **Register**. Note down the displayed **Application (client) ID**.
+4. In the left navigation, select **API permissions**:
+   - Click **Add a permission** -> **Microsoft Graph** -> **Delegated permissions**.
+   - Check `Files.ReadWrite` and `offline_access`.
+   - Click **Add permissions**.
+5. (Optional, if registering as a confidential app): Go to **Certificates & secrets** -> **New client secret**, create a secret and copy its value.
+
+### Step 2: Generate OAuth 2.0 Tokens
+Using the standard Microsoft OAuth 2.0 authorization code flow:
+1. Open this URL in your web browser (replace `<CLIENT_ID>` with your Application ID):
+   ```text
+   https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=<CLIENT_ID>&response_type=code&redirect_uri=https://login.microsoftonline.com/common/oauth2/nativeclient&response_mode=query&scope=https://graph.microsoft.com/Files.ReadWrite%20offline_access
+   ```
+2. Sign in with your Microsoft account and grant the requested permissions.
+3. After granting consent, your browser redirects to a blank page or confirmation. Copy the `code` parameter from the address bar.
+4. Exchange the code for tokens (via curl, Postman, or script):
+   ```bash
+   curl -X POST https://login.microsoftonline.com/common/oauth2/v2.0/token \
+     -d "client_id=<CLIENT_ID>" \
+     -d "grant_type=authorization_code" \
+     -d "code=<CODE>" \
+     -d "redirect_uri=https://login.microsoftonline.com/common/oauth2/nativeclient" \
+     -d "scope=https://graph.microsoft.com/Files.ReadWrite offline_access"
+   ```
+5. Copy the returned `refresh_token`.
+
+### Step 3: Configure KeePassXC
+In the **OneDrive** tab:
+- **Enable OneDrive Synchronization**: Checked
+- **Client ID**: Your Application (client) ID
+- **Client Secret (optional)**: Your Client Secret (if configured)
+- **Refresh Token (Permanent)**: The permanent refresh token
+- **Access Token (optional)**: Leave blank (KeePassXC will auto-generate and refresh it before expiry)
+- **Remote File Path**: File path relative to OneDrive root (e.g., `passwords.kdbx` or `Documents/passwords.kdbx`)
+- **Drive ID (optional)**: Leave blank for default drive, or provide a specific Drive ID for SharePoint / business drives
+- Click **Test OneDrive Connection** to verify connectivity.
 
 ---
 

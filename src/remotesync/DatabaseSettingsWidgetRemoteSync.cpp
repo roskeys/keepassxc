@@ -16,6 +16,7 @@ DatabaseSettingsWidgetRemoteSync::DatabaseSettingsWidgetRemoteSync(QWidget* pare
     connect(m_ui->checkWebDavEnabled, &QCheckBox::toggled, m_ui->groupWebDavSettings, &QWidget::setEnabled);
     connect(m_ui->checkDropboxEnabled, &QCheckBox::toggled, m_ui->groupDropboxSettings, &QWidget::setEnabled);
     connect(m_ui->checkGoogleDriveEnabled, &QCheckBox::toggled, m_ui->groupGoogleDriveSettings, &QWidget::setEnabled);
+    connect(m_ui->checkOneDriveEnabled, &QCheckBox::toggled, m_ui->groupOneDriveSettings, &QWidget::setEnabled);
     connect(m_ui->checkSftpEnabled, &QCheckBox::toggled, m_ui->groupSftpSettings, &QWidget::setEnabled);
     connect(m_ui->checkS3Enabled, &QCheckBox::toggled, m_ui->groupS3Settings, &QWidget::setEnabled);
     connect(m_ui->checkGitEnabled, &QCheckBox::toggled, m_ui->groupGitSettings, &QWidget::setEnabled);
@@ -23,6 +24,7 @@ DatabaseSettingsWidgetRemoteSync::DatabaseSettingsWidgetRemoteSync(QWidget* pare
     m_ui->groupWebDavSettings->setEnabled(false);
     m_ui->groupDropboxSettings->setEnabled(false);
     m_ui->groupGoogleDriveSettings->setEnabled(false);
+    m_ui->groupOneDriveSettings->setEnabled(false);
     m_ui->groupSftpSettings->setEnabled(false);
     m_ui->groupS3Settings->setEnabled(false);
     m_ui->groupGitSettings->setEnabled(false);
@@ -35,6 +37,7 @@ DatabaseSettingsWidgetRemoteSync::DatabaseSettingsWidgetRemoteSync(QWidget* pare
     connect(m_ui->buttonTestWebDav, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestWebDavConnection);
     connect(m_ui->buttonTestDropbox, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestDropboxConnection);
     connect(m_ui->buttonTestGoogleDrive, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestGoogleDriveConnection);
+    connect(m_ui->buttonTestOneDrive, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestOneDriveConnection);
     connect(m_ui->buttonTestSftp, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestSftpConnection);
     connect(m_ui->buttonTestS3, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestS3Connection);
     connect(m_ui->buttonTestGit, &QPushButton::clicked, this, &DatabaseSettingsWidgetRemoteSync::onTestGitConnection);
@@ -81,7 +84,18 @@ void DatabaseSettingsWidgetRemoteSync::loadSettings(QSharedPointer<Database> db)
     m_ui->editGoogleDriveFolderId->setText(s.googleDrive.folderId);
     m_ui->labelTestGoogleDriveResult->clear();
 
-    // 3. SFTP
+    // 4. OneDrive
+    m_ui->checkOneDriveEnabled->setChecked(s.oneDrive.enabled);
+    m_ui->groupOneDriveSettings->setEnabled(s.oneDrive.enabled);
+    m_ui->editOneDriveClientId->setText(s.oneDrive.clientId);
+    m_ui->editOneDriveClientSecret->setText(s.oneDrive.clientSecret);
+    m_ui->editOneDriveRefreshToken->setText(s.oneDrive.refreshToken);
+    m_ui->editOneDriveToken->setText(s.oneDrive.accessToken);
+    m_ui->editOneDriveRemotePath->setText(s.oneDrive.remotePath);
+    m_ui->editOneDriveDriveId->setText(s.oneDrive.driveId);
+    m_ui->labelTestOneDriveResult->clear();
+
+    // 5. SFTP
     m_ui->checkSftpEnabled->setChecked(s.sftp.enabled);
     m_ui->groupSftpSettings->setEnabled(s.sftp.enabled);
     m_ui->editSftpHost->setText(s.sftp.host);
@@ -152,7 +166,16 @@ void DatabaseSettingsWidgetRemoteSync::saveSettings()
     s.googleDrive.remotePath = m_ui->editGoogleDriveRemotePath->text().trimmed();
     s.googleDrive.folderId = m_ui->editGoogleDriveFolderId->text().trimmed();
 
-    // 4. SFTP
+    // 4. OneDrive
+    s.oneDrive.enabled = m_ui->checkOneDriveEnabled->isChecked();
+    s.oneDrive.clientId = m_ui->editOneDriveClientId->text().trimmed();
+    s.oneDrive.clientSecret = m_ui->editOneDriveClientSecret->text().trimmed();
+    s.oneDrive.refreshToken = m_ui->editOneDriveRefreshToken->text().trimmed();
+    s.oneDrive.accessToken = m_ui->editOneDriveToken->text().trimmed();
+    s.oneDrive.remotePath = m_ui->editOneDriveRemotePath->text().trimmed();
+    s.oneDrive.driveId = m_ui->editOneDriveDriveId->text().trimmed();
+
+    // 5. SFTP
     s.sftp.enabled = m_ui->checkSftpEnabled->isChecked();
     s.sftp.host = m_ui->editSftpHost->text().trimmed();
     s.sftp.port = m_ui->spinSftpPort->value();
@@ -286,6 +309,33 @@ void DatabaseSettingsWidgetRemoteSync::onTestGoogleDriveConnection()
             m_ui->labelTestGoogleDriveResult->setText(tr("<font color='green'>Connection successful!</font>"));
         } else {
             m_ui->labelTestGoogleDriveResult->setText(tr("<font color='red'>Failed: %1</font>").arg(result.errorMessage));
+        }
+        provider->deleteLater();
+    });
+}
+
+void DatabaseSettingsWidgetRemoteSync::onTestOneDriveConnection()
+{
+    RemoteSyncSettings s;
+    s.protocol = RemoteSyncSettings::Protocol::OneDrive;
+    s.oneDrive.enabled = true;
+    s.oneDrive.clientId = m_ui->editOneDriveClientId->text().trimmed();
+    s.oneDrive.clientSecret = m_ui->editOneDriveClientSecret->text().trimmed();
+    s.oneDrive.refreshToken = m_ui->editOneDriveRefreshToken->text().trimmed();
+    s.oneDrive.accessToken = m_ui->editOneDriveToken->text().trimmed();
+    s.oneDrive.remotePath = m_ui->editOneDriveRemotePath->text().trimmed();
+    s.oneDrive.driveId = m_ui->editOneDriveDriveId->text().trimmed();
+
+    m_ui->labelTestOneDriveResult->setText(tr("Testing OneDrive connection..."));
+    m_ui->buttonTestOneDrive->setEnabled(false);
+
+    auto* provider = SyncProviderFactory::create(RemoteSyncSettings::Protocol::OneDrive, this);
+    provider->testConnection(s, [this, provider](const SyncResult& result) {
+        m_ui->buttonTestOneDrive->setEnabled(true);
+        if (result.isSuccess()) {
+            m_ui->labelTestOneDriveResult->setText(tr("<font color='green'>Connection successful!</font>"));
+        } else {
+            m_ui->labelTestOneDriveResult->setText(tr("<font color='red'>Failed: %1</font>").arg(result.errorMessage));
         }
         provider->deleteLater();
     });
