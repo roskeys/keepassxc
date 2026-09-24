@@ -426,7 +426,11 @@ void RemoteSyncManager::pushDatabase(std::function<void(bool success)> completio
     if (!m_db->filePath().isEmpty() && QFile::exists(m_db->filePath())) {
         saved = QFile::copy(m_db->filePath(), localTempPath);
     } else {
+        QString oldFilePath = m_db->filePath();
         saved = m_db->saveAs(localTempPath, Database::DirectWrite);
+        if (!oldFilePath.isEmpty()) {
+            m_db->setFilePath(oldFilePath);
+        }
     }
 
     if (!saved) {
