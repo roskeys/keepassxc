@@ -1,0 +1,28 @@
+name: keepassxc
+
+services:
+  linux-dev:
+    build:
+      context: .
+      dockerfile: docker/linux/Dockerfile
+    image: keepassxc-linux-dev
+    container_name: keepassxc-linux-dev-container
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - .:/workspace/keepassxc
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /run/user/1000:/run/user/1000:ro
+    ipc: host
+    restart: unless-stopped
+
+  win64-builder:
+    build:
+      context: .
+      dockerfile: docker/windows/Dockerfile
+    image: keepassxc-win64-builder
+    container_name: keepassxc-win64-build-container
+    volumes:
+      - .:/workspace/keepassxc
+    restart: unless-stopped
