@@ -37,3 +37,4 @@ credentials/
 build-flatpak/
 build-win64/
 dist-win64/
+dist-mac/
