@@ -59,6 +59,10 @@ KeePass1Reader::readDatabase(QIODevice* device, const QString& password, QIODevi
 {
     m_error = false;
     m_errorStr.clear();
+    m_entryUuids.clear();
+    m_groupIds.clear();
+    m_groupLevels.clear();
+    m_entryGroupIds.clear();
 
     QByteArray keyfileData;
     auto newFileKey = QSharedPointer<FileKey>::create();
@@ -572,6 +576,8 @@ Entry* KeePass1Reader::readEntry(QIODevice* cipherStream)
 
     TimeInfo timeInfo;
     QString binaryName;
+    QByteArray uuid;
+    QVariant groupId;
     bool ok;
     bool reachedEnd = false;
 
@@ -603,15 +609,14 @@ Entry* KeePass1Reader::readEntry(QIODevice* cipherStream)
                 raiseError(tr("Invalid entry UUID field size"));
                 return nullptr;
             }
-            m_entryUuids.insert(fieldData, entry.data());
+            uuid = fieldData;
             break;
         case 0x0002: {
             if (fieldSize != 4) {
                 raiseError(tr("Invalid entry group id field size"));
                 return nullptr;
             }
-            auto groupId = Endian::bytesToSizedInt<quint32>(fieldData, KeePass1::BYTEORDER);
-            m_entryGroupIds.insert(entry.data(), groupId);
+            groupId = Endian::bytesToSizedInt<quint32>(fieldData, KeePass1::BYTEORDER);
             break;
         }
         case 0x0003: {
@@ -700,6 +705,13 @@ Entry* KeePass1Reader::readEntry(QIODevice* cipherStream)
             return nullptr;
         }
     } while (!reachedEnd);
+
+    if (uuid.isEmpty() || groupId.isNull()) {
+        raiseError(tr("Incomplete entry: No UUID or group ID"));
+        return nullptr;
+    }
+    m_entryUuids.insert(uuid, entry.data());
+    m_entryGroupIds.insert(entry.data(), groupId.toUInt());
 
     entry->setTimeInfo(timeInfo);
 
@@ -819,7 +831,7 @@ bool KeePass1Reader::parseGroupTreeState(const QByteArray& data)
         return false;
     }
 
-    int pos = 0;
+    qsizetype pos = 0;
     auto num = Endian::bytesToSizedInt<quint32>(data.mid(pos, 4), KeePass1::BYTEORDER);
     pos += 4;
 
@@ -849,7 +861,7 @@ bool KeePass1Reader::parseCustomIcons4(const QByteArray& data)
         return false;
     }
 
-    int pos = 0;
+    qsizetype pos = 0;
 
     auto numIcons = Endian::bytesToSizedInt<quint32>(data.mid(pos, 4), KeePass1::BYTEORDER);
     pos += 4;
@@ -862,14 +874,14 @@ bool KeePass1Reader::parseCustomIcons4(const QByteArray& data)
 
     QList<QUuid> iconUuids;
 
-    for (quint32 i = 0; i < numIcons; i++) {
-        if (data.size() < (pos + 4)) {
+    for (quint32 i = 0; i < numIcons; ++i) {
+        if (static_cast<quint64>(data.size()) < (static_cast<quint64>(pos) + 4)) {
             return false;
         }
         auto iconSize = Endian::bytesToSizedInt<quint32>(data.mid(pos, 4), KeePass1::BYTEORDER);
         pos += 4;
 
-        if (static_cast<quint32>(data.size()) < (pos + iconSize)) {
+        if (static_cast<quint64>(data.size()) < (pos + static_cast<quint64>(iconSize))) {
             return false;
         }
         QByteArray icon = data.mid(pos, iconSize);
@@ -880,11 +892,11 @@ bool KeePass1Reader::parseCustomIcons4(const QByteArray& data)
         m_db->metadata()->addCustomIcon(uuid, icon);
     }
 
-    if (static_cast<quint32>(data.size()) < (pos + numEntries * 20)) {
+    if (static_cast<quint64>(data.size()) < (pos + static_cast<quint64>(numEntries) * 20)) {
         return false;
     }
 
-    for (quint32 i = 0; i < numEntries; i++) {
+    for (quint32 i = 0; i < numEntries; ++i) {
         QByteArray entryUuid = data.mid(pos, 16);
         pos += 16;
 
@@ -896,11 +908,11 @@ bool KeePass1Reader::parseCustomIcons4(const QByteArray& data)
         }
     }
 
-    if (static_cast<quint32>(data.size()) < (pos + numGroups * 8)) {
+    if (static_cast<quint64>(data.size()) < (pos + static_cast<quint64>(numGroups) * 8)) {
         return false;
     }
 
-    for (quint32 i = 0; i < numGroups; i++) {
+    for (quint32 i = 0; i < numGroups; ++i) {
         auto groupId = Endian::bytesToSizedInt<quint32>(data.mid(pos, 4), KeePass1::BYTEORDER);
         pos += 4;
 

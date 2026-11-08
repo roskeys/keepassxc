@@ -305,9 +305,12 @@ def _cleanup():
 
 
 def _split_version(version):
-    if type(version) is not str or not re.match(r'^\d+\.\d+\.\d+$', version):
+    if type(version) is not str:
+        raise Error('No version set.')
+    match = re.match(r'^((?:\d+\.){2}\d+)(?:-(alpha|beta|snapshot)?(\d+)?)?$', version)
+    if not match:
         raise Error('Invalid version number: %s', version)
-    return version.split('.')
+    return match.group(1).split('.')
 
 
 def _capture_vs_env(arch='amd64'):
@@ -466,7 +469,7 @@ class Check(Command):
     @classmethod
     def perform_version_checks(cls, version, src_dir, git_ref=None, version_exists=False, checkout=True):
         logger.info('Performing version checks...')
-        major, minor, patch = _split_version(version)
+        major, minor, _ = _split_version(version)
         cls.check_working_tree_clean(src_dir)
         if version_exists:
             git_ref = git_ref or version
@@ -528,8 +531,10 @@ class Check(Command):
         minor = re.search(r'^set\(KEEPASSXC_VERSION_MINOR "(\d+)"\)$', cmakelists_text, re.MULTILINE).group(1)
         patch = re.search(r'^set\(KEEPASSXC_VERSION_PATCH "(\d+)"\)$', cmakelists_text, re.MULTILINE).group(1)
         cmake_version = '.'.join([major, minor, patch])
-        if cmake_version != version:
-            raise Error(f'Version number in {cmakelists} not updated! Expected: %s, found: %s.', version, cmake_version)
+        expected_version = '.'.join(_split_version(version))
+        if cmake_version != expected_version:
+            raise Error(f'Version number in {cmakelists} not updated! Expected: %s, found: %s.',
+                        expected_version, cmake_version)
 
     @staticmethod
     def check_version_in_vcpkg_manifest(version, cwd=None):
@@ -548,8 +553,7 @@ class Check(Command):
             changelog = Path(cwd) / changelog
         if not changelog.is_file():
             raise Error('File not found: %s', changelog)
-        major, minor, patch = _split_version(version)
-        if not re.search(rf'^## {major}\.{minor}\.{patch} \(.+?\)\n+', changelog.read_text("UTF-8"), re.MULTILINE):
+        if not re.search(rf'^## {re.escape(version)} \(.+?\)\n+', changelog.read_text("UTF-8"), re.MULTILINE):
             raise Error(f'{changelog} has not been updated to the "%s" release.', version)
 
     @staticmethod
@@ -568,7 +572,7 @@ class Check(Command):
             raise Error(f'{appstream} is not well-formed. Error: %s at line %s, column %s',
                         e.getMessage(), e.getLineNumber(), e.getColumnNumber())
 
-        regex = re.compile(rf'^\s*<release version="{version}" date=".+?">')
+        regex = re.compile(rf'^\s*<release version="{re.escape(version)}" date=".+?">')
         with appstream.open('r', encoding='utf-8') as f:
             for line in f:
                 if regex.search(line):
@@ -614,7 +618,6 @@ class Tag(Command):
 
     def run(self, version, src_dir, release_branch, tag_name, no_latest, sign_key, no_sign, yes,
             skip_translations, tx_resource, tx_min_perc):
-        major, minor, patch = _split_version(version)
         Check.perform_basic_checks(src_dir)
         release_branch = Check.perform_version_checks(version, src_dir, release_branch)
         Check.check_gnupg()
@@ -625,11 +628,13 @@ class Tag(Command):
             i18n = I18N(self._arg_parser)
             i18n.run_tx_pull(src_dir, tx_resource, tx_min_perc, commit=True, yes=yes)
 
-        changelog = re.search(rf'^## ({major}\.{minor}\.{patch} \(.*?\)\n\n+.+?)\n\n+## ',
+        changelog = re.search(rf'^## ({re.escape(version)} \(.*?\)\n\n+.+?)\n\n+## ',
                               (Path(src_dir) / 'CHANGELOG.md').read_text("UTF-8"), re.MULTILINE | re.DOTALL)
         if not changelog:
             raise Error(f'No changelog entry found for version {version}.')
-        changelog = 'Release ' + changelog.group(1)
+        # Git treats lines starting with # as comments
+        changelog = re.sub(r'^#+[ \t]*', '', changelog.group(1), flags=re.MULTILINE)
+        changelog = 'Release ' + changelog
 
         tag_name = tag_name or version
         logger.info('Creating "%s" tag...', tag_name)
@@ -961,8 +966,6 @@ class Build(Command):
             _run(['cmake', '--install', '.', '--strip',
                   '--prefix', (app_dir.absolute() / install_prefix.lstrip('/')).as_posix()],
                  cwd=build_dir, capture_output=False, **docker_args)
-            shutil.copytree(app_dir, output_dir / app_dir.name, symlinks=True, dirs_exist_ok=True)
-
             if appimage:
                 appimage_platform = _map_platform_target(platform_target, 'x86_64', 'aarch64')
                 self._build_linux_appimage(
@@ -1000,13 +1003,10 @@ class Build(Command):
         app_run = src_dir / 'share/linux/appimage-apprun.sh'
 
         env = os.environ.copy()
+        env['QMAKE'] = env.get('QMAKE', 'qmake6')
         if docker_args.get('docker_image'):
-            # Use the Qt environment provided by the Linux build image, not the host's paths.
-            env.pop('QMAKE', None)
             # Containers may lack working FUSE, such as when run on a macOS host.
             env['APPIMAGE_EXTRACT_AND_RUN'] = '1'
-        else:
-            env['QMAKE'] = env.get('QMAKE', 'qmake6')
         run_args = dict(docker_args, cwd=build_dir, capture_output=False, env=env)
 
         logger.info('Building AppImage...')
@@ -1241,7 +1241,7 @@ class I18N(Command):
     def check_lupdate_exists(path):
         if _cmd_exists('lupdate', path=path):
             result = _run(['lupdate', '-version'], path=path, check=False, cwd=None, text=True)
-            if result.returncode == 0 and result.stdout.startswith('lupdate version 5.'):
+            if result.returncode == 0:
                 return
         raise Error('lupdate command not found. Make sure it is installed and the correct version.')
 

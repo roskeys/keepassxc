@@ -5586,6 +5586,10 @@ If this reoccurs, then your database file may be corrupt.</source>
         <source>Invalid entry field type</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Incomplete entry: No UUID or group ID</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>KeeShare</name>
@@ -6748,15 +6752,11 @@ This version is not meant for production use.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Unable to read all IV bytes, wanted 16 but got %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Unable to init cipher for opdata01: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Unable to read all HMAC signature bytes</source>
+        <source>Plain text length out of range: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6768,7 +6768,11 @@ This version is not meant for production use.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Expected %1 bytes of clear-text, found %2</source>
+        <source>Invalid OpData01 data length</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid OpData01 ciphertext length</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
